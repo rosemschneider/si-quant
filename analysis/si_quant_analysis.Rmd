@@ -1,5 +1,6 @@
 ---
 title: "SI_quant"
+output: html_
 Horowitz, Mekler, Schneider, Frank, etc. 
 Analyses for Scalar Implicature, Give-Quantifier, and DCCS
 ---
@@ -10,7 +11,7 @@ library(knitr)
 opts_chunk$set(cache=TRUE, message=FALSE, warning=FALSE)
 ```
 
-Preliminaries.
+Preliminaries
 ```{r}
 rm(list=ls())
 library(ggplot2)
@@ -31,19 +32,20 @@ theme_set(theme_bw())
 ```
 
 ---
-SI
+SI graphs and visualizations
 ---
 
 ```{r}
-
+#reading in the original wide-form dataframe
 d1 <- read.csv("..//data/SI_coding.csv")
 
+#this is rearranging this dataframe into long form
 d2=melt.data.frame(d1,c("sub_ID","experimenter","test_age","condition", "order", "training"),c("carrot", "hat", "cookies", "trains", "cats", "purses",  "keys", "shirts", "breads", "horses", "bears", "frogs", "plates", "books", "elephants", "lamps", "bananas", "butterflies", 
 "carrot_condition", "hat_condition", "cookies_condition", "trains_condition", "cats_condition", "purses_condition",  "keys_condition", "shirts_condition", "breads_condition", "horses_condition", "bears_condition", "frogs_condition", "plates_condition", "books_condition", "elephants_condition", "lamps_condition", "bananas_condition", "butterflies_condition", 
 "carrot_type", "hat_type", "cookies_type", "trains_type", "cats_type", "purses_type",  "keys_type", "shirts_type", "breads_type", "horses_type", "bears_type", "frogs_type", "plates_type", "books_type", "elephants_type", "lamps_type", "bananas_type", "butterflies_type"))
 
 
-#making a respectable df  
+#making a respectable df - reorganizing and renaming things  
 data <- d2[1:702,] 
 data$condition <- d2$value[703:1404]
 data$type <- d2$value[1405:2106]
@@ -51,18 +53,21 @@ names(data)[7] <- "item"
 names(data)[8] <- "SI_correct"
 data$correct <- data$SI_correct==1
 
-#filtering out unnecessary things, adding agesplit
+#filtering out NAs, adding agesplit
 data %<>%
   filter(sub_ID != "", correct != "NA") %>%
   mutate(agesplit = cut(test_age, breaks=c(3, 3.5, 4, 4.5, 5)))%>%
   mutate(split_2 = cut(test_age, breaks = c(3, 4, 5)))%>%
   filter(agesplit != "NA")
 
+#this is creating a dataframe for use in analyses
 data_si <- data
 data_si$test <- "Scalar Implicature"
 ```
 
-SI analyses 
+
+
+SI graphs
 ```{r}
 #number of kids in each age group
 num_kids <- data %>%
@@ -82,9 +87,11 @@ names(agg.data) <- c("type", "agesplit", "correct")
 agg.data$total <- agg.data.len$x
 agg.data$prop.corr <- agg.data$correct / agg.data$total
 
+#prop correct and standard error
 agg.data$q <- 1 - agg.data$prop.corr
 agg.data$err <- sqrt((agg.data$prop.corr * agg.data$q) / agg.data$total)
 
+#defining variables
 dodge <- position_dodge(width=0.9) 
 limits <- aes(ymax = prop.corr + err, ymin=prop.corr - err) 
 
@@ -106,6 +113,7 @@ GQ analyses
 #read in and establish dataframe
 d1 <- read.csv("..//data/GQ_coding.csv")
 
+#change to long form
 d2=melt.data.frame(d1,c("sub_ID","experimenter", "test_age","condition", "training"),c("X1_condition", "X2_condition", "X3_condition", "X4_condition", "X5_condition", "X6_condition",  "X7_condition", "X8_condition", "X1_given", "X2_given", "X3_given", "X4_given", "X5_given", "X6_given",  "X7_given", "X8_given"))
 
 #making a respectable df  
@@ -122,10 +130,11 @@ data %<>%
   mutate(split_2 = cut(test_age, breaks = c(3, 4, 5)))%>%
   filter(agesplit != "NA", num_given != "0 (8 oranges)", num_given != "0 (8 bananas)", num_given != "0 (8 strawberries)")
 
-#this is because num_given is a factor - need to change to a number
+#this is because num_given is a factor - need to change to a number - need to do this for standard error
 data$num_given <- as.character(data$num_given)
 data$num_given <- as.numeric(data$num_given)
 
+#creating dataframe for analyses
 data_gq <- data
 data_gq$test <- "Give-Quantifier"
 ```
@@ -151,28 +160,30 @@ ggplot(data = agg.data,
   scale_fill_brewer(palette="Set1")
 ```
 
-Histogram of responses, faceted by age group
+Histogram of responses, faceted by prompt, split by age
 ```{r}
+#N.B. this is for 3s and 4s currently
 hist_data <- data %>%
   group_by(split_2, prompt, num_given)%>%
   summarise(n = n()) %>%
   group_by(split_2, prompt) %>%
   mutate(n.total = sum(n), prop = n/n.total)
 
-
+#plot
 quartz()
 ggplot(data = hist_data, aes(x = num_given, y = prop, fill = split_2)) + geom_bar(stat = "identity", position = position_dodge()) + xlab("Number Given") + ylab("Count of kids giving number") + facet_wrap(~prompt) + scale_fill_brewer(palette="Set1")
 
 ```
 
 ---
-DCCS analyses
+DCCS
 ---
 
 Read in dataframe
 ```{r}
+#wide-form
 d1 <- read.csv("..//data/DCCS_coding.csv")
-
+#long form
 d2=melt.data.frame(d1,c("sub_ID","experimenter","test_age","condition", "order"),c("pre_1", "pre_2", "pre_3", "pre_4", "pre_5", "pre_6",  "post_1", "post_2", "post_3", "post_4", "post_5", "post_6"))
 
 #filtering data, creating age breaks
@@ -180,9 +191,11 @@ data <- d2 %>%
   filter(sub_ID != "") %>%
   mutate(agesplit = cut(test_age, breaks=c(3, 3.5, 4, 4.5, 5)), split_2 = cut(test_age, breaks = c(3, 4, 5)))
 
+#renaming things
 names(data)[6] <- "trial_type"
 names(data)[7] <- "DCCS_correct"
 
+#df for further analyses
 data_dccs <- data
 data_dccs$test <- "DCCS"
   
@@ -190,8 +203,9 @@ data_dccs$test <- "DCCS"
 
 Accuracy on DCCS task
 ```{r}
-agg.data <- aggregate(data$correct, list(data$trial_type, data$agesplit), FUN=sum)
-agg.data.len <- aggregate(data$correct, list(data$trial_type, data$agesplit), FUN=length)
+#aggregate correct by trial type and age
+agg.data <- aggregate(data$DCCS_correct, list(data$trial_type, data$agesplit), FUN=sum)
+agg.data.len <- aggregate(data$DCCS_correct, list(data$trial_type, data$agesplit), FUN=length)
 agg.data$x <- agg.data$x 
 agg.data.len$x <- agg.data.len$x 
 
@@ -199,9 +213,11 @@ names(agg.data) <- c("trial_type", "agesplit", "correct")
 agg.data$total <- agg.data.len$x
 agg.data$prop.corr <- agg.data$correct / agg.data$total
 
+#standard error
 agg.data$q <- 1 - agg.data$prop.corr
 agg.data$err <- sqrt((agg.data$prop.corr * agg.data$q) / agg.data$total)
 
+#variables established
 dodge <- position_dodge(width=0.9) 
 limits <- aes(ymax = prop.corr + err, ymin=prop.corr - err) 
 
@@ -219,6 +235,73 @@ ggplot(data = agg.data,
 ---
 Stats
 ---
+
+```{r}
+tmp <- right_join(data_dccs, data_gq, by = "sub_ID")
+d.all <- right_join(data_si, tmp, by = "sub_ID")
+
+mss.acc <- d.all %>%
+  group_by(sub_ID, test, type)
+
+```
+
+Summary measure for each participant
+```{r}
+#si df
+data_si$SI_correct <- as.character(data_si$SI_correct)
+data_si$SI_correct <- as.numeric(data_si$SI_correct)
+
+#some magic to make DCCS reasonable
+data_dccs$DCCS_correct <- as.character(data_dccs$DCCS_correct)
+data_dccs$DCCS_correct <- as.numeric(data_dccs$DCCS_correct)
+data_dccs %<>%
+mutate(switch_type = as.character(factor(trial_type,
+                           labels=c("post", "post", "post", "post", "post", "post", "pre", "pre", "pre", "pre", "pre", "pre"))))
+
+#gq magic
+data_gq$num_given <- as.character(data_gq$num_given)
+data_gq$num_given <- as.numeric(data_gq$num_given)
+
+
+#scalar implicature task
+mss.acc <- data_si %>%
+  group_by(sub_ID, type)%>%
+  summarise(correct=mean(SI_correct))%>%
+  spread(type, correct)
+
+#dccs task
+mss.acc2 <- data_dccs %>%
+  group_by(sub_ID, switch_type)%>%
+  summarise(correct=mean(DCCS_correct))%>%
+  spread(switch_type, correct)
+
+#gq task
+mss.acc3 <- data_gq %>%
+  group_by(sub_ID, prompt)%>%
+  summarise(mean_num = mean(num_given))%>%
+  spread(prompt, mean_num)
+ 
+  
+
+```
+Create wide-form dataframe on which to run stats
+```{r}
+#these are the original data frames, which are wide form
+d_si <- read.csv("../data/SI_coding.csv")
+d_dccs <- read.csv("../data/DCCS_coding.csv")
+d_gq <- read.csv("../data/GQ_coding.csv")
+
+tmp <- right_join(d_si, d_dccs, by = "sub_ID")
+d_all <- right_join(tmp, d_gq, by ="sub_ID")
+
+#make d_all neater
+d_all %<>%
+  select(sub_ID, test_age.x, condition, order, training.x, carrot_condition, carrot, hat_condition, hat, cookies_condition, cookies, trains_condition, trains, cats_condition, cats, purses_condition, purses, keys_condition, keys, shirts_condition, shirts, breads_condition, breads, horses_condition, horses, bears_condition, bears, frogs_condition, frogs, plates_condition, plates, books_condition, books, elephants_condition, elephants, lamps_condition, lamps, bananas_condition, bananas, butterflies_condition, butterflies, training.y, pre_1, pre_2, pre_3, pre_4, pre_3, pre_4, pre_5, pre_6, post_1, post_2, post_3, post_4, post_5, post_6, training, X1_condition, X1_given, X2_condition, X2_given, X3_condition, X3_given, X4_condition, X4_given, X5_condition, X5_given, X6_condition, X6_given, X7_condition, X7_given, X8_condition, X8_given)%>%
+  filter(sub_ID != "NA")%>%
+  mutate(agesplit = cut(test_age.x, breaks=c(3,4,5)))%>%
+  filter(agesplit != "NA")
+  
+```
 
 
 To do: Simple correlations between tasks, regressions
