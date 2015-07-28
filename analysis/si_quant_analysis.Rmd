@@ -39,16 +39,18 @@ SI graphs and visualizations
 #reading in the original wide-form dataframe
 d1 <- read.csv("..//data/SI_coding.csv")
 
-#this is rearranging this dataframe into long form
-d2=melt.data.frame(d1,c("sub_ID","experimenter","test_age","condition", "order", "training"),c("carrot", "hat", "cookies", "trains", "cats", "purses",  "keys", "shirts", "breads", "horses", "bears", "frogs", "plates", "books", "elephants", "lamps", "bananas", "butterflies", 
-"carrot_condition", "hat_condition", "cookies_condition", "trains_condition", "cats_condition", "purses_condition",  "keys_condition", "shirts_condition", "breads_condition", "horses_condition", "bears_condition", "frogs_condition", "plates_condition", "books_condition", "elephants_condition", "lamps_condition", "bananas_condition", "butterflies_condition", 
-"carrot_type", "hat_type", "cookies_type", "trains_type", "cats_type", "purses_type",  "keys_type", "shirts_type", "breads_type", "horses_type", "bears_type", "frogs_type", "plates_type", "books_type", "elephants_type", "lamps_type", "bananas_type", "butterflies_type"))
+
+d2=melt.data.frame(d1,c("sub_ID","experimenter","test_age","condition", "order", "training"),c("carrot", "hat", "cookies", "trains", "cats", "purses",  "keys", "shirts", "breads", "horses", "bears", "frogs", "plates", "books", "elephants", "lamps", "bananas", "butterflies", "carrot_condition", "hat_condition", "cookies_condition", "trains_condition", "cats_condition", "purses_condition",  "keys_condition", "shirts_condition", "breads_condition", "horses_condition", "bears_condition", "frogs_condition", "plates_condition", "books_condition", "elephants_condition", "lamps_condition", "bananas_condition", "butterflies_condition", "carrot_type", "hat_type", "cookies_type", "trains_type", "cats_type", "purses_type",  "keys_type", "shirts_type", "breads_type", "horses_type", "bears_type", "frogs_type", "plates_type", "books_type", "elephants_type", "lamps_type", "bananas_type", "butterflies_type"))
 
 
-#making a respectable df - reorganizing and renaming things  
-data <- d2[1:702,] 
-data$condition <- d2$value[703:1404]
-data$type <- d2$value[1405:2106]
+#making a respectable df  
+#data <- d2[1:576,] 
+#data$condition <- d2$value[577:1152]
+#data$type <- d2$value[1153:1728]
+onethird <- (1/3)*nrow(d2)
+data <- d2[1:onethird,]
+data$condition <- d2$value[(onethird+1):(onethird*2)]
+data$type <- d2$value[(2*onethird+1):nrow(d2)]
 names(data)[7] <- "item"
 names(data)[8] <- "SI_correct"
 data$correct <- data$SI_correct==1
@@ -60,7 +62,7 @@ data %<>%
   mutate(split_2 = cut(test_age, breaks = c(3, 4, 5)))%>%
   filter(agesplit != "NA")
 
-#this is creating a dataframe for use in analyses
+
 data_si <- data
 data_si$test <- "Scalar Implicature"
 ```
@@ -117,8 +119,11 @@ d1 <- read.csv("..//data/GQ_coding.csv")
 d2=melt.data.frame(d1,c("sub_ID","experimenter", "test_age","condition", "training"),c("X1_condition", "X2_condition", "X3_condition", "X4_condition", "X5_condition", "X6_condition",  "X7_condition", "X8_condition", "X1_given", "X2_given", "X3_given", "X4_given", "X5_given", "X6_given",  "X7_given", "X8_given"))
 
 #making a respectable df  
-data <- d2[1:320,] 
-data$num_given <- d2$value[321:640]
+#data <- d2[1:256,] 
+#data$num_given <- d2$value[257:512]
+firsthalf <- nrow(d2)/2
+data <- d2[1:firsthalf,]
+data$num_given <- d2$value[(firsthalf+1):nrow(d2)]
 names(data)[6] <- "trial"
 names(data)[7] <- "prompt"
 
@@ -158,6 +163,8 @@ ggplot(data = agg.data,
   ylab("Mean num given") + 
   xlab("Quantifier prompt") +
   scale_fill_brewer(palette="Set1")
+
+
 ```
 
 Histogram of responses, faceted by prompt, split by age
@@ -190,6 +197,7 @@ d2=melt.data.frame(d1,c("sub_ID","experimenter","test_age","condition", "order")
 data <- d2 %>%
   filter(sub_ID != "") %>%
   mutate(agesplit = cut(test_age, breaks=c(3, 3.5, 4, 4.5, 5)), split_2 = cut(test_age, breaks = c(3, 4, 5)))
+
 
 #renaming things
 names(data)[6] <- "trial_type"
