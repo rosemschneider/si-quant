@@ -178,7 +178,7 @@ hist_data <- data %>%
 
 #plot
 quartz()
-ggplot(data = hist_data, aes(x = num_given, y = prop, fill = split_2)) + geom_bar(stat = "identity", position = position_dodge()) + xlab("Number Given") + ylab("Count of kids giving number") + facet_wrap(~prompt) + scale_fill_brewer(palette="Set1")
+ggplot(data = hist_data, aes(x = num_given, y = prop, fill = split_2)) + geom_bar(stat = "identity", position = position_dodge()) + xlab("Number Given") + ylab("Prop of kids giving number") + facet_wrap(~prompt) + scale_fill_brewer(palette="Set1")
 
 ```
 
@@ -254,61 +254,68 @@ mss.acc <- d.all %>%
 ```
 
 Summary measure for each participant
+
+First, SI
 ```{r}
 #si df
 data_si$SI_correct <- as.character(data_si$SI_correct)
 data_si$SI_correct <- as.numeric(data_si$SI_correct)
-
-#some magic to make DCCS reasonable
-data_dccs$DCCS_correct <- as.character(data_dccs$DCCS_correct)
-data_dccs$DCCS_correct <- as.numeric(data_dccs$DCCS_correct)
-data_dccs %<>%
-mutate(switch_type = as.character(factor(trial_type,
-                           labels=c("post", "post", "post", "post", "post", "post", "pre", "pre", "pre", "pre", "pre", "pre"))))
-
-#gq magic
-data_gq$num_given <- as.character(data_gq$num_given)
-data_gq$num_given <- as.numeric(data_gq$num_given)
-
 
 #scalar implicature task
 mss.acc <- data_si %>%
   group_by(sub_ID, type)%>%
   summarise(correct=mean(SI_correct))%>%
   spread(type, correct)
+```
 
-#dccs task
+Now DCCS
+```{r}
+#some magic to make DCCS reasonable
+data_dccs %<>%
+  mutate(trial_type = as.vector(trial_type))
+
+#this is a terrible and horrible thing that I had to do in order to get the data formatted correctly
+tmp1 <- unlist(data_dccs$trial_type)%>%
+  str_replace("pre_1", "pre")%>%
+  str_replace("pre_2", "pre")%>%
+  str_replace("pre_3", "pre")%>%
+  str_replace("pre_4", "pre")%>%
+  str_replace("pre_5", "pre")%>%
+  str_replace("pre_6", "pre")%>%
+  str_replace("post_1", "post")%>%
+  str_replace("post_2", "post")%>%
+  str_replace("post_3", "post")%>%
+  str_replace("post_4", "post")%>%
+  str_replace("post_5", "post")%>%
+  str_replace("post_6", "post")
+
+#seriously, this is so terrible
+tmp <- as.data.frame(tmp1) %>%
+  select(switch_type = tmp1)
+tmp2 <- bind_cols(data_dccs, tmp)
+data_dccs <- tmp2
+
+#dccs task summary measures by participant
 mss.acc2 <- data_dccs %>%
   group_by(sub_ID, switch_type)%>%
   summarise(correct=mean(DCCS_correct))%>%
   spread(switch_type, correct)
 
-#gq task
+```
+
+Now GQ
+```{r}
+#gq task - note that some of these are NAs because the kids gave 0 of the named fruit, but 8 of another fruit
 mss.acc3 <- data_gq %>%
   group_by(sub_ID, prompt)%>%
   summarise(mean_num = mean(num_given))%>%
   spread(prompt, mean_num)
- 
-  
-
 ```
-Create wide-form dataframe on which to run stats
+
+Create a wide-form df on which to run analyses
 ```{r}
-#these are the original data frames, which are wide form
-d_si <- read.csv("../data/SI_coding.csv")
-d_dccs <- read.csv("../data/DCCS_coding.csv")
-d_gq <- read.csv("../data/GQ_coding.csv")
-
-tmp <- right_join(d_si, d_dccs, by = "sub_ID")
-d_all <- right_join(tmp, d_gq, by ="sub_ID")
-
-#make d_all neater
-d_all %<>%
-  select(sub_ID, test_age.x, condition, order, training.x, carrot_condition, carrot, hat_condition, hat, cookies_condition, cookies, trains_condition, trains, cats_condition, cats, purses_condition, purses, keys_condition, keys, shirts_condition, shirts, breads_condition, breads, horses_condition, horses, bears_condition, bears, frogs_condition, frogs, plates_condition, plates, books_condition, books, elephants_condition, elephants, lamps_condition, lamps, bananas_condition, bananas, butterflies_condition, butterflies, training.y, pre_1, pre_2, pre_3, pre_4, pre_3, pre_4, pre_5, pre_6, post_1, post_2, post_3, post_4, post_5, post_6, training, X1_condition, X1_given, X2_condition, X2_given, X3_condition, X3_given, X4_condition, X4_given, X5_condition, X5_given, X6_condition, X6_given, X7_condition, X7_given, X8_condition, X8_given)%>%
-  filter(sub_ID != "NA")%>%
-  mutate(agesplit = cut(test_age.x, breaks=c(3,4,5)))%>%
-  filter(agesplit != "NA")
-  
+tmp <- right_join(mss.acc, mss.acc2, by = "sub_ID")
+d_all <- right_join(tmp, mss.acc3, by = "sub_ID")
 ```
 
 
