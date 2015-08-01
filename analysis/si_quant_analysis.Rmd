@@ -1,6 +1,7 @@
 ---
 title: "SI_quant"
-output: html_
+output: html_document
+---
 Horowitz, Mekler, Schneider, Frank, etc. 
 Analyses for Scalar Implicature, Give-Quantifier, and DCCS
 ---
@@ -71,12 +72,12 @@ data_si$test <- "Scalar Implicature"
 
 SI graphs
 ```{r}
-#number of kids in each age group
-num_kids <- data %>%
-  select(sub_ID, agesplit) %>%
-  distinct() %>%
-  group_by(agesplit)%>%
-  summarize(n=n())
+# #number of kids in each age group
+# num_kids <- data %>%
+#   select(sub_ID, agesplit) %>%
+#   distinct() %>%
+#   group_by(agesplit)%>%
+#   summarize(n=n())
 
 
 #accuracy by age group in different trials 
@@ -179,6 +180,25 @@ hist_data <- data %>%
 #plot
 quartz()
 ggplot(data = hist_data, aes(x = num_given, y = prop, fill = split_2)) + geom_bar(stat = "identity", position = position_dodge()) + xlab("Number Given") + ylab("Prop of kids giving number") + facet_wrap(~prompt) + scale_fill_brewer(palette="Set1")
+```
+
+Split by four age groups:
+
+```{r}
+hist_data <- data %>%
+  group_by(agesplit, prompt, num_given)%>%
+  summarise(n = n()) %>%
+  group_by(agesplit, prompt) %>%
+  mutate(n.total = sum(n), prop = n/n.total)
+
+#plot
+quartz()
+ggplot(data = hist_data, aes(x = num_given, y = prop, fill = agesplit)) + 
+  geom_bar(stat = "identity", position = position_dodge()) + 
+  xlab("Number Given") +
+  ylab("Prop of kids giving number") + 
+  facet_wrap(agesplit~prompt) + 
+  scale_fill_brewer(palette="Set1")
 
 ```
 
@@ -243,17 +263,7 @@ ggplot(data = agg.data,
 ---
 Stats
 ---
-
-```{r}
-tmp <- right_join(data_dccs, data_gq, by = "sub_ID")
-d.all <- right_join(data_si, tmp, by = "sub_ID")
-
-mss.acc <- d.all %>%
-  group_by(sub_ID, test, type)
-
-```
-
-Summary measure for each participant
+Summary measures for each participant
 
 First, SI
 ```{r}
@@ -270,10 +280,6 @@ mss.acc <- data_si %>%
 
 Now DCCS
 ```{r}
-#some magic to make DCCS reasonable
-data_dccs %<>%
-  mutate(trial_type = as.vector(trial_type))
-
 #this is a terrible and horrible thing that I had to do in order to get the data formatted correctly
 tmp1 <- unlist(data_dccs$trial_type)%>%
   str_replace("pre_1", "pre")%>%
@@ -308,17 +314,75 @@ Now GQ
 #gq task - note that some of these are NAs because the kids gave 0 of the named fruit, but 8 of another fruit
 mss.acc3 <- data_gq %>%
   group_by(sub_ID, prompt)%>%
-  summarise(mean_num = mean(num_given))%>%
+  summarise(mean_num = mean(num_given), 
+            test_age = test_age[1]) %>%
   spread(prompt, mean_num)
 ```
 
-Create a wide-form df on which to run analyses
+Create a wide-form df on which to run analyses - note that these are the mean performances across all trials per participant
 ```{r}
+#this is joining the summary measures we created above, and renaming the variables so that we keep everything straight
 tmp <- right_join(mss.acc, mss.acc2, by = "sub_ID")
-d_all <- right_join(tmp, mss.acc3, by = "sub_ID")
+d_all <- right_join(tmp, mss.acc3, by = "sub_ID") %>%
+  rename(SI_none = control_none, 
+         SI_all = control_all, 
+         SI_implicature = implicature, 
+         DCCS_post = post, DCCS_pre = pre, 
+         GQ_all = all, 
+         GQ_most = most, 
+         GQ_some = some, 
+         GQ_none = none)
 ```
 
+---
+Simple Correlations
+---
+These go here
 
-To do: Simple correlations between tasks, regressions
+```{r}
+source("~/Desktop/ggcorplot.R")
 
+d_all$GQ_none[is.na(d_all$GQ_none)] <- 0 # backfill when they gave the wrong object (but none of the target)
+cor.data <- d_all %>%
+  select(-sub_ID, -GQ_all, -DCCS_pre) %>%
+  filter(complete.cases(.)) %>%
+  data.frame
+
+ggcorplot(data=cor.data)
+```
+
+Try predicting none on the basis of control.
+
+```{r}
+summary(glm(SI_none ~  DCCS_post, data=d_all, 
+            family = "binomial"))
+summary(glm(SI_none ~  DCCS_post + test_age, data=d_all, 
+            family = "binomial"))
+summary(glm(GQ_none == 0 ~  DCCS_post, data=d_all, 
+            family = "binomial"))
+summary(glm(GQ_none == 0 ~  DCCS_post + test_age, data=d_all, 
+            family = "binomial"))
+```
+
+Look at some and age
+
+Also try a super-exploratory analysis where we put together the none trials
+
+```{r}
+summary(glm(none_composite ~ test_age + DCCS_post, data=d_all, 
+            family = "binomial"))
+
+d_all <- d_all %>%
+  mutate(none_composite = ((as.numeric(GQ_none==0) + SI_none)/2) > .5)
+
+summary(glm(none_composite ~  DCCS_post, data=d_all, 
+            family = "binomial"))
+summary(glm(none_composite ~ test_age + DCCS_post, data=d_all, 
+            family = "binomial"))
+
+
+```
+---
+
+---
 
