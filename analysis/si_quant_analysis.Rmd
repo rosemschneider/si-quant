@@ -136,6 +136,7 @@ data %<>%
   mutate(split_2 = cut(test_age, breaks = c(3, 4, 5)))%>%
   filter(agesplit != "NA", num_given != "0 (8 oranges)", num_given != "0 (8 bananas)", num_given != "0 (8 strawberries)")
 
+
 #this is because num_given is a factor - need to change to a number - need to do this for standard error
 data$num_given <- as.character(data$num_given)
 data$num_given <- as.numeric(data$num_given)
@@ -337,10 +338,10 @@ d_all <- right_join(tmp, mss.acc3, by = "sub_ID") %>%
 ---
 Simple Correlations
 ---
-These go here
+
 
 ```{r}
-source("~/Desktop/ggcorplot.R")
+source("ggcorplot.R")
 
 d_all$GQ_none[is.na(d_all$GQ_none)] <- 0 # backfill when they gave the wrong object (but none of the target)
 cor.data <- d_all %>%
@@ -369,11 +370,13 @@ Look at some and age
 Also try a super-exploratory analysis where we put together the none trials
 
 ```{r}
+d_all <- d_all %>%
+  mutate(none_composite = ((as.numeric(GQ_none==0) + SI_none)/2) > .5)
+
 summary(glm(none_composite ~ test_age + DCCS_post, data=d_all, 
             family = "binomial"))
 
-d_all <- d_all %>%
-  mutate(none_composite = ((as.numeric(GQ_none==0) + SI_none)/2) > .5)
+
 
 summary(glm(none_composite ~  DCCS_post, data=d_all, 
             family = "binomial"))
