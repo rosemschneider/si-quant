@@ -7,9 +7,9 @@ Analyses for Scalar Implicature, Give-Quantifier, and DCCS
 ---
 
 Set up Rmd parameters
-```{r setup, include=FALSE}
+```{r}
 library(knitr)
-opts_chunk$set(cache=TRUE, message=FALSE, warning=FALSE)
+opts_chunk$set(cache=TRUE, message=FALSE, warning=FALSE, error=TRUE)
 ```
 
 Preliminaries
@@ -108,7 +108,7 @@ ggplot(data = agg.data,
   xlab("Trial Type") +
   scale_fill_brewer(palette="Set1")
 ```
-
+---
 
 GQ analyses 
 
@@ -206,7 +206,7 @@ ggplot(data = hist_data, aes(x = num_given, y = prop, fill = agesplit)) +
 
 ```
 
-
+---
 DCCS
 
 
@@ -263,7 +263,7 @@ ggplot(data = agg.data,
   scale_fill_brewer(palette="Set1") + facet_wrap(~agesplit)
 ```
 
-
+---
 Stats
 
 Summary measures for each participant
@@ -337,7 +337,7 @@ d_all <- right_join(tmp, mss.acc3, by = "sub_ID") %>%
          GQ_none = none)
 ```
 
-
+---
 Simple Correlations
 
 
@@ -355,12 +355,12 @@ quartz()
 ggcorplot(data=cor.data)
 ```
 
-
+---
 
 Partial correlations - control for age
 First, Scalar Implicature with DCCS and SI
 ```{r}
-library(ppcor)
+
 #partial correlation - implicature and dccs
 pcor.test(d_all$SI_implicature, d_all$DCCS_post, d_all$test_age)
 
@@ -372,6 +372,7 @@ pcor.test(d_all$SI_none, d_all$DCCS_post, d_all$test_age)
 
 Then GQ with DCCS and GQ
 ```{r}
+#
 pcor.test(d_all$GQ_none, d_all$DCCS_post, d_all$test_age)
 
 pcor.test(d_all$GQ_some, d_all$DCCS_post, d_all$test_age)
@@ -382,6 +383,7 @@ pcor.test(d_all$GQ_none, d_all$GQ_some, d_all$test_age)
 
 Finally GQ with SI
 ```{r}
+#
 pcor.test(d_all$SI_implicature, d_all$GQ_some, d_all$test_age)
 
 pcor.test(d_all$SI_none, d_all$GQ_some, d_all$test_age)
@@ -395,12 +397,16 @@ pcor.test(d_all$SI_none, d_all$GQ_none, d_all$test_age)
 
 Summary of partial correlations: 
 After controlling for age, we find significant correlations between:
-SI-none and SI-implicature - this means that kids who get SI implicature trials correct are also more likely to get SI none trials correct
-GQ-some and GQ-none trials - similar to above
-SI-none and GQ-none - negative correlation, meaning that kids who do worse on SI-none trials are more likely to fail (give more objects) for GQ-none trials
+
+SInone and SIimplicature  this means that kids who get SI implicature trials correct are also more likely to get SI none trials correct
+
+GQsome and GQnone trials  similar to above
+
+Sinone and GQnone  negative correlation, meaning that kids who do worse on SInone trials are more likely to fail GQnone trials
 
 Almost signficant correlation between:
-SI-none and GQ-some trials - similar to above
+
+SInone and GQsome trialssimilar to above
 
 Linear Models
 
@@ -417,10 +423,7 @@ summary(glm(GQ_none == 0 ~  DCCS_post + test_age, data=d_all,
             family = "binomial"))
 ```
 
-
-
-
-Also try a super-exploratory analysis where we put together the none trials
+Also try a super exploratory analysis where we put together the none trials
 
 ```{r}
 d_all <- d_all %>%
