@@ -29,12 +29,13 @@ library(bootstrap)
 library(RMySQL)
 library(RCurl)
 
+
 theme_set(theme_bw())
 ```
 
----
+
 SI graphs and visualizations
----
+
 
 ```{r}
 #reading in the original wide-form dataframe
@@ -108,16 +109,18 @@ ggplot(data = agg.data,
   scale_fill_brewer(palette="Set1")
 ```
 
----
+
 GQ analyses 
----
+
 
 ```{r}
 #read in and establish dataframe
 d1 <- read.csv("../data/GQ_coding.csv")
+d1[,c(8,10,12,14,16,18,20,22)] <- sapply(d1[,c(8,10,12,14,16,18,20,22)],as.character) #for unknown reasons this is necessary for melt.data.frame now
+
 
 #change to long form
-d2=melt.data.frame(d1,c("sub_ID", "test_age","condition", "training"),c("X1_condition", "X2_condition", "X3_condition", "X4_condition", "X5_condition", "X6_condition",  "X7_condition", "X8_condition", "X1_given", "X2_given", "X3_given", "X4_given", "X5_given", "X6_given",  "X7_given", "X8_given"))
+d2=melt.data.frame(d1,c("sub_ID", "test_age","condition", "order", "training"),c("X1_condition", "X2_condition", "X3_condition", "X4_condition", "X5_condition", "X6_condition",  "X7_condition", "X8_condition", "X1_given", "X2_given", "X3_given", "X4_given", "X5_given", "X6_given",  "X7_given", "X8_given"))
 
 #making a respectable df  
 #data <- d2[1:256,] 
@@ -125,8 +128,8 @@ d2=melt.data.frame(d1,c("sub_ID", "test_age","condition", "training"),c("X1_cond
 firsthalf <- nrow(d2)/2
 data <- d2[1:firsthalf,]
 data$num_given <- d2$value[(firsthalf+1):nrow(d2)]
-names(data)[5] <- "trial"
-names(data)[6] <- "prompt"
+names(data)[6] <- "trial"
+names(data)[7] <- "prompt"
 
 
 #filtering data, creating age breaks
@@ -203,9 +206,9 @@ ggplot(data = hist_data, aes(x = num_given, y = prop, fill = agesplit)) +
 
 ```
 
----
+
 DCCS
----
+
 
 Read in dataframe
 ```{r}
@@ -261,9 +264,8 @@ ggplot(data = agg.data,
 ```
 
 
----
 Stats
----
+
 Summary measures for each participant
 
 First, SI
@@ -335,11 +337,11 @@ d_all <- right_join(tmp, mss.acc3, by = "sub_ID") %>%
          GQ_none = none)
 ```
 
----
+
 Simple Correlations
----
 
 
+Huge correlation matrix of all variables
 ```{r}
 source("ggcorplot.R")
 
@@ -349,8 +351,58 @@ cor.data <- d_all %>%
   filter(complete.cases(.)) %>%
   data.frame
 
+quartz()
 ggcorplot(data=cor.data)
 ```
+
+
+
+Partial correlations - control for age
+First, Scalar Implicature with DCCS and SI
+```{r}
+library(ppcor)
+#partial correlation - implicature and dccs
+pcor.test(d_all$SI_implicature, d_all$DCCS_post, d_all$test_age)
+
+pcor.test(d_all$SI_implicature, d_all$SI_none, d_all$test_age)
+#Significant correlation between performance on implicature and none trials in SI task after controlling for age
+
+pcor.test(d_all$SI_none, d_all$DCCS_post, d_all$test_age)
+```
+
+Then GQ with DCCS and GQ
+```{r}
+pcor.test(d_all$GQ_none, d_all$DCCS_post, d_all$test_age)
+
+pcor.test(d_all$GQ_some, d_all$DCCS_post, d_all$test_age)
+
+pcor.test(d_all$GQ_none, d_all$GQ_some, d_all$test_age)
+#highly significant correlation between performance on GQ none and some trials, controlling for age
+```
+
+Finally GQ with SI
+```{r}
+pcor.test(d_all$SI_implicature, d_all$GQ_some, d_all$test_age)
+
+pcor.test(d_all$SI_none, d_all$GQ_some, d_all$test_age)
+#almost signficant negative correlation between SI_none performance and GQ_some, controlling for age. This means that kids who do worse on the SI_none tasks are more likely to give more items for GQ_some (aka give 8 items for some)
+
+pcor.test(d_all$SI_implicature, d_all$GQ_none, d_all$test_age)
+
+pcor.test(d_all$SI_none, d_all$GQ_none, d_all$test_age)
+#very significant negative correlation between performance on SI_none and GQ_none, meaning that kids who do worse on SI_none are more likely to give all 8 objects for none
+```
+
+Summary of partial correlations: 
+After controlling for age, we find significant correlations between:
+SI-none and SI-implicature - this means that kids who get SI implicature trials correct are also more likely to get SI none trials correct
+GQ-some and GQ-none trials - similar to above
+SI-none and GQ-none - negative correlation, meaning that kids who do worse on SI-none trials are more likely to fail (give more objects) for GQ-none trials
+
+Almost signficant correlation between:
+SI-none and GQ-some trials - similar to above
+
+Linear Models
 
 Try predicting none on the basis of control.
 
@@ -365,7 +417,8 @@ summary(glm(GQ_none == 0 ~  DCCS_post + test_age, data=d_all,
             family = "binomial"))
 ```
 
-Look at some and age
+
+
 
 Also try a super-exploratory analysis where we put together the none trials
 
@@ -385,7 +438,5 @@ summary(glm(none_composite ~ test_age + DCCS_post, data=d_all,
 
 
 ```
----
 
----
 
