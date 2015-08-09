@@ -156,14 +156,17 @@ d1[,c(8,10,12,14,16,18,20,22)] <- sapply(d1[,c(8,10,12,14,16,18,20,22)],as.chara
 
 
 #change to long form
-d2=melt.data.frame(d1,c("sub_ID", "test_age","condition", "order", "training"),c("X1_condition", "X2_condition", "X3_condition", "X4_condition", "X5_condition", "X6_condition",  "X7_condition", "X8_condition", "X1_given", "X2_given", "X3_given", "X4_given", "X5_given", "X6_given",  "X7_given", "X8_given"))
+d2=melt.data.frame(d1,c("sub_ID", "test_age","condition", "order", "training"),c("X1_condition", "X2_condition", "X3_condition", "X4_condition", "X5_condition", "X6_condition",  "X7_condition", "X8_condition", "X1_given", "X2_given", "X3_given", "X4_given", "X5_given", "X6_given",  "X7_given", "X8_given", "X1_correct", "X2_correct", "X3_correct", "X4_correct", "X5_correct", "X6_correct",  "X7_correct", "X8_correct"))
 
 #making a respectable df  
-firsthalf <- nrow(d2)/2
-data <- d2[1:firsthalf,]
-data$num_given <- d2$value[(firsthalf+1):nrow(d2)]
+onethird <- (1/3)*nrow(d2)
+data <- d2[1:onethird,]
+data$selection <- d2$value[(onethird+1):(onethird*2)]
+data$type <- d2$value[(2*onethird+1):nrow(d2)]
 names(data)[6] <- "trial"
 names(data)[7] <- "prompt"
+names(data)[8] <- "num_given"
+names(data)[9] <- "GQ_correct"
 
 
 #filtering data, creating age breaks
@@ -176,6 +179,8 @@ data %<>%
 #this is because num_given is a factor - need to change to a number - need to do this for standard error
 data$num_given <- as.character(data$num_given)
 data$num_given <- as.numeric(data$num_given)
+data$GQ_correct <-as.character(data$GQ_correct)
+data$GQ_correct <- as.numeric(data$GQ_correct)
 
 #creating dataframe for analyses
 data_gq <- data %>%
@@ -203,7 +208,37 @@ ggplot(data = agg.data,
   scale_fill_brewer(palette="Set1")
 ```
 
-Split by four age groups:
+Correct trials split by age - note, this is just whether kids got the trial correct or not
+```{r}
+agg.data <- aggregate(data$GQ_correct, list(data$prompt, data$agesplit), FUN=sum)
+agg.data.len <- aggregate(data$GQ_correct, list(data$prompt, data$agesplit), FUN=length)
+agg.data$x <- agg.data$x 
+agg.data.len$x <- agg.data.len$x 
+
+names(agg.data) <- c("prompt", "agesplit", "correct")
+agg.data$total <- agg.data.len$x
+agg.data$prop.corr <- agg.data$correct / agg.data$total
+
+#prop correct and standard error
+agg.data$q <- 1 - agg.data$prop.corr
+agg.data$err <- sqrt((agg.data$prop.corr * agg.data$q) / agg.data$total)
+
+#defining variables
+dodge <- position_dodge(width=0.9) 
+limits <- aes(ymax = prop.corr + err, ymin=prop.corr - err) 
+
+#plot
+quartz()
+ggplot(data = agg.data, 
+       aes(x=prompt, y=prop.corr, fill=agesplit)) +
+  geom_bar(stat="identity", position = position_dodge())  + geom_errorbar(limits, position=dodge)+
+  ylab("Proportion correct") + 
+  xlab("Trial Type") +
+  scale_fill_brewer(palette="Set1")
+
+```
+
+Number given (average) Split by four age groups:
 
 ```{r}
 hist_data <- data %>%
@@ -335,26 +370,38 @@ mss.acc2 <- data_dccs %>%
 Now GQ
 ```{r}
 #gq task - note that some of these are NAs because the kids gave 0 of the named fruit, but 8 of another fruit
+#first mean number
 mss.acc3 <- data_gq %>%
   group_by(sub_ID, prompt)%>%
-  summarise(mean_num = mean(num_given), 
+  summarise(mean_num = mean(num_given),
             test_age = test_age[1]) %>%
   spread(prompt, mean_num)
+
+#then correct
+mss.acc4 <- data_gq %>%
+  group_by(sub_ID, prompt)%>%
+  summarise(mean_correct = mean(GQ_correct))%>%
+  spread(prompt, mean_correct)
 ```
 
 Create a wide-form df on which to run analyses - note that these are the mean performances across all trials per participant
 ```{r}
 #this is joining the summary measures we created above, and renaming the variables so that we keep everything straight
 tmp <- right_join(mss.acc, mss.acc2, by = "sub_ID")
-d_all <- right_join(tmp, mss.acc3, by = "sub_ID") %>%
+tmp1 <- right_join(tmp, mss.acc3, by = "sub_ID") 
+d_all <- right_join(tmp1, mss.acc4, by = "sub_ID") %>%
   dplyr::rename(SI_none = control_none, 
          SI_all = control_all, 
          SI_implicature = implicature, 
          DCCS_post = post, DCCS_pre = pre, 
-         GQ_all = all, 
-         GQ_most = most, 
-         GQ_some = some, 
-         GQ_none = none)
+         GQ_all = all.x, 
+         GQ_most = most.x, 
+         GQ_some = some.x, 
+         GQ_none = none.x, 
+         GQ_all_correct = all.y, 
+         GQ_most_correct = most.y, 
+         GQ_some_correct = some.y, 
+         GQ_none_correct = none.y)
 ```
 
 
@@ -382,49 +429,74 @@ library(ppcor)
 #partial correlation - implicature and dccs
 pcor.test(d_all$SI_implicature, d_all$DCCS_post, d_all$test_age)
 
-pcor.test(d_all$SI_implicature, d_all$SI_none, d_all$test_age)
 #Significant correlation between performance on implicature and none trials in SI task after controlling for age
+pcor.test(d_all$SI_implicature, d_all$SI_none, d_all$test_age)
+
 
 pcor.test(d_all$SI_none, d_all$DCCS_post, d_all$test_age)
 ```
 
 Then GQ with DCCS and GQ
 ```{r}
-#
+
 pcor.test(d_all$GQ_none, d_all$DCCS_post, d_all$test_age)
 
 pcor.test(d_all$GQ_some, d_all$DCCS_post, d_all$test_age)
 
-pcor.test(d_all$GQ_none, d_all$GQ_some, d_all$test_age)
 #highly significant correlation between performance on GQ none and some trials, controlling for age
+pcor.test(d_all$GQ_none, d_all$GQ_some, d_all$test_age)
+
 ```
 
 Finally GQ with SI
 ```{r}
-#
+
 pcor.test(d_all$SI_implicature, d_all$GQ_some, d_all$test_age)
 
-pcor.test(d_all$SI_none, d_all$GQ_some, d_all$test_age)
 #almost signficant negative correlation between SI_none performance and GQ_some, controlling for age. This means that kids who do worse on the SI_none tasks are more likely to give more items for GQ_some (aka give 8 items for some)
+pcor.test(d_all$SI_none, d_all$GQ_some, d_all$test_age)
+
 
 pcor.test(d_all$SI_implicature, d_all$GQ_none, d_all$test_age)
 
-pcor.test(d_all$SI_none, d_all$GQ_none, d_all$test_age)
 #very significant negative correlation between performance on SI_none and GQ_none, meaning that kids who do worse on SI_none are more likely to give all 8 objects for none
+pcor.test(d_all$SI_none, d_all$GQ_none, d_all$test_age)
+
+```
+
+Partial correlations for GQ_correct with everything
+```{r}
+#first scalar implicature
+
+#significant correlation between getting GQ some and SI implicature trials correct
+pcor.test(d_all$GQ_some_correct, d_all$SI_implicature, d_all$test_age)
+
+#significant correlation between getting GQ none and SI none correct
+pcor.test(d_all$GQ_none_correct, d_all$SI_none, d_all$test_age)
+
+#significant between GQ some and SI none
+pcor.test(d_all$GQ_some_correct, d_all$SI_none, d_all$test_age)
+
+pcor.test(d_all$GQ_none_correct, d_all$SI_implicature, d_all$test_age)
+
+#now DCCS
+pcor.test(d_all$GQ_some_correct, d_all$DCCS_post, d_all$test_age)
+
+pcor.test(d_all$GQ_none_correct, d_all$DCCS_post, d_all$test_age)
 ```
 
 Summary of partial correlations: 
 After controlling for age, we find significant correlations between:
 
-SInone and SIimplicature  this means that kids who get SI implicature trials correct are also more likely to get SI none trials correct
+SI none and SI implicature  this means that kids who get SI implicature trials correct are also more likely to get SI none trials correct
 
-GQsome and GQnone trials  similar to above
+GQ some and GQ none trials  similar to above
 
-Sinone and GQnone  negative correlation, meaning that kids who do worse on SInone trials are more likely to fail GQnone trials
+Si none and GQ none negative correlation, meaning that kids who do worse on SInone trials are more likely to fail GQnone trials - scored as correct, they are highly correlated
 
-Almost signficant correlation between:
+GQ some and SI implicature trials correlated (when scored as correct)
 
-SInone and GQsome trialssimilar to above
+And GQ some trials and SI none trials also correlated (when scored as correct)
 
 Linear Models
 
@@ -435,9 +507,15 @@ summary(glm(SI_none ~  DCCS_post, data=d_all,
             family = "binomial"))
 summary(glm(SI_none ~  DCCS_post + test_age, data=d_all, 
             family = "binomial"))
-summary(glm(GQ_none == 0 ~  DCCS_post, data=d_all, 
+summary(glm(GQ_none_correct == 0 ~  DCCS_post, data=d_all, 
             family = "binomial"))
-summary(glm(GQ_none == 0 ~  DCCS_post + test_age, data=d_all, 
+summary(glm(GQ_none_correct == 0 ~  DCCS_post + test_age, data=d_all, 
+            family = "binomial"))
+```
+
+Try predicting some on the basis of control
+```{r}
+summary(glm(GQ_some_correct ~  DCCS_post + test_age, data=d_all, 
             family = "binomial"))
 ```
 
