@@ -25,6 +25,7 @@ library(directlabels)
 library(magrittr)
 library(bootstrap)
 library(RCurl)
+library(readr)
 
 
 theme_set(theme_bw())
@@ -74,14 +75,23 @@ data$correct <- data$SI_correct==1
 #filtering out NAs, adding agesplit
 data %<>%
   filter(sub_ID != "", correct != "NA") %>%
-  mutate(agesplit = cut(test_age, breaks=c(3, 3.5, 4, 4.5, 5)))%>%
-  mutate(split_2 = cut(test_age, breaks = c(3, 4, 5)))%>%
+  mutate(agesplit = cut(test_age, breaks=c(3, 3.5, 4, 4.5, 5)), agesplit = factor(agesplit,
+                           labels=c("3-3.5 years", "3.5-4 years", "4-4.5 years", "4.5-5 years"))) %>%
   filter(agesplit != "NA")
+
+data$type %<>%
+  str_replace("control_all", "All")%>%
+  str_replace("control_none", "None")%>%
+  str_replace("implicature", "Implicature")
+
+data$selection %<>%
+  str_replace("all", "All")%>%
+  str_replace("none", "None")%>%
+  str_replace("some", "Some")
 
 #in case you need this data in the future
 data_si <- data %>%
   mutate(test = "Scalar Implicature")
-
 ```
 
 
@@ -101,7 +111,7 @@ agg.data.len <- aggregate(data$correct, list(data$type, data$agesplit), FUN=leng
 agg.data$x <- agg.data$x 
 agg.data.len$x <- agg.data.len$x 
 
-names(agg.data) <- c("type", "agesplit", "correct")
+names(agg.data) <- c("type", "Agesplit", "correct")
 agg.data$total <- agg.data.len$x
 agg.data$prop.corr <- agg.data$correct / agg.data$total
 
@@ -116,7 +126,7 @@ limits <- aes(ymax = prop.corr + err, ymin=prop.corr - err)
 #plot
 quartz()
 ggplot(data = agg.data, 
-       aes(x=type, y=prop.corr, fill=agesplit)) +
+       aes(x=type, y=prop.corr, fill=Agesplit)) +
   geom_bar(stat="identity", position = position_dodge())  + geom_errorbar(limits, position=dodge)+
   ylab("Proportion correct") + 
   xlab("Trial Type") +
@@ -130,15 +140,16 @@ si_wrong <- data %>%
   filter(SI_correct != 1) %>%
   group_by(agesplit, type, selection)%>%
   summarise(n=n())%>%
+  dplyr::rename(Agesplit = agesplit) %>%
   mutate(n.total = sum(n), prop = n/n.total)
 
 #now graph
 quartz()
 ggplot(data = si_wrong, 
-       aes(x=selection, y=n, fill=agesplit)) +
+       aes(x=selection, y=n, fill=Agesplit)) +
   geom_bar(stat="identity", position = position_dodge())  +
-  ylab("Count of kids choosing") + 
-  xlab("Selection") + facet_wrap(~type) +
+  ylab("Count of children choosing in trial") + 
+  xlab("Selection Type") + facet_wrap(~type) +
   scale_fill_brewer(palette="Set1")
   
 ```
@@ -152,7 +163,7 @@ GQ analyses
 ```{r}
 #read in and establish dataframe
 d1 <- read.csv("../data/GQ_coding.csv")
-d1[,c(8,10,12,14,16,18,20,22)] <- sapply(d1[,c(8,10,12,14,16,18,20,22)],as.character) #for unknown reasons this is necessary for melt.data.frame now
+d1[,c(8,10,12,14,16,18,20,22, 31, 32, 33, 34)] <- sapply(d1[,c(8,10,12,14,16,18,20,22, 31, 32, 33, 34)],as.character) #for unknown reasons this is necessary for melt.data.frame now
 
 
 #change to long form
@@ -168,19 +179,25 @@ names(data)[7] <- "prompt"
 names(data)[8] <- "num_given"
 names(data)[9] <- "GQ_correct"
 
-
 #filtering data, creating age breaks
 data %<>%
   filter(sub_ID != "", num_given != "N/A") %>%
-  mutate(agesplit = cut(test_age, breaks=c(3, 3.5, 4, 4.5, 5)))%>%
-  mutate(split_2 = cut(test_age, breaks = c(3, 4, 5)))%>%
-  filter(agesplit != "NA", num_given != "0 (8 oranges)", num_given != "0 (8 bananas)", num_given != "0 (8 strawberries)")
+  mutate(agesplit = cut(test_age, breaks=c(3, 3.5, 4, 4.5, 5)), agesplit = factor(agesplit,
+                           labels=c("3-3.5 years", "3.5-4 years", "4-4.5 years", "4.5-5 years"))) %>%
+  dplyr::rename(Agesplit = agesplit) %>%
+  filter(Agesplit != "NA", num_given != "0 (8 oranges)", num_given != "0 (8 bananas)", num_given != "0 (8 strawberries)")
 
 #this is because num_given is a factor - need to change to a number - need to do this for standard error
 data$num_given <- as.character(data$num_given)
 data$num_given <- as.numeric(data$num_given)
 data$GQ_correct <-as.character(data$GQ_correct)
 data$GQ_correct <- as.numeric(data$GQ_correct)
+
+data$prompt %<>%
+  str_replace("all", "All")%>%
+  str_replace("most", "Most")%>%
+  str_replace("some", "Some")%>%
+  str_replace("none", "None")
 
 #creating dataframe for analyses
 data_gq <- data %>%
@@ -189,10 +206,10 @@ data_gq <- data %>%
 
 Average given for each prompt by age group 
 ```{r}
-agg.data <- aggregate(data$num_given, list(data$prompt, data$agesplit), FUN=mean)
-agg.data.sd <- aggregate(data$num_given, list(data$prompt, data$agesplit), FUN=sd)
+agg.data <- aggregate(data$num_given, list(data$prompt, data$Agesplit), FUN=mean)
+agg.data.sd <- aggregate(data$num_given, list(data$prompt, data$Agesplit), FUN=sd)
 
-names(agg.data) <- c("prompt", "agesplit", "num_given")
+names(agg.data) <- c("prompt", "Agesplit", "num_given")
 agg.data$sd <- agg.data.sd$x
 
 ##establish limits
@@ -201,21 +218,21 @@ limits <- aes(ymax = num_given + sd, ymin=num_given - sd)
 #plot
 quartz()
 ggplot(data = agg.data, 
-       aes(x=prompt, y=num_given, fill=agesplit)) +
+       aes(x=prompt, y=num_given, fill=Agesplit)) +
   geom_bar(stat="identity", position = position_dodge())  + geom_errorbar(limits, position=dodge)+
-  ylab("Mean num given") + 
+  ylab("Mean number given") + 
   xlab("Quantifier prompt") +
   scale_fill_brewer(palette="Set1")
 ```
 
 Correct trials split by age - note, this is just whether kids got the trial correct or not
 ```{r}
-agg.data <- aggregate(data$GQ_correct, list(data$prompt, data$agesplit), FUN=sum)
-agg.data.len <- aggregate(data$GQ_correct, list(data$prompt, data$agesplit), FUN=length)
+agg.data <- aggregate(data$GQ_correct, list(data$prompt, data$Agesplit), FUN=sum)
+agg.data.len <- aggregate(data$GQ_correct, list(data$prompt, data$Agesplit), FUN=length)
 agg.data$x <- agg.data$x 
 agg.data.len$x <- agg.data.len$x 
 
-names(agg.data) <- c("prompt", "agesplit", "correct")
+names(agg.data) <- c("prompt", "Agesplit", "correct")
 agg.data$total <- agg.data.len$x
 agg.data$prop.corr <- agg.data$correct / agg.data$total
 
@@ -230,31 +247,32 @@ limits <- aes(ymax = prop.corr + err, ymin=prop.corr - err)
 #plot
 quartz()
 ggplot(data = agg.data, 
-       aes(x=prompt, y=prop.corr, fill=agesplit)) +
+       aes(x=prompt, y=prop.corr, fill=Agesplit)) +
   geom_bar(stat="identity", position = position_dodge())  + geom_errorbar(limits, position=dodge)+
-  ylab("Proportion correct") + 
-  xlab("Trial Type") +
+  ylab("Proportion Correct") + 
+  xlab("Quantifier Prompt") +
   scale_fill_brewer(palette="Set1")
 
 ```
+
 
 Number given (average) Split by four age groups:
 
 ```{r}
 hist_data <- data %>%
-  group_by(agesplit, prompt, num_given)%>%
+  group_by(Agesplit, prompt, num_given)%>%
   summarise(n = n()) %>%
-  group_by(agesplit, prompt) %>%
+  group_by(Agesplit, prompt) %>%
   mutate(n.total = sum(n), prop = n/n.total)
 
 #plot
 quartz()
-ggplot(data = hist_data, aes(x = num_given, y = prop, fill = agesplit)) + 
+ggplot(data = hist_data, aes(x = num_given, y = prop, fill = Agesplit)) + 
   geom_bar(stat = "identity", position = position_dodge()) + 
   xlab("Number Given") +
-  ylab("Prop of kids giving number") + 
+  ylab("Proportion of children giving in trial") + 
   facet_wrap(agesplit~prompt) + 
-  scale_fill_brewer(palette="Set1")
+  scale_fill_brewer(palette="Set1") + facet_wrap(Agesplit ~ prompt) + theme(legend.position="none")
 ```
 
 
@@ -271,7 +289,8 @@ d2=melt.data.frame(d1,c("sub_ID","test_age","condition", "order"),c("pre_1", "pr
 #filtering data, creating age breaks
 data <- d2 %>%
   filter(sub_ID != "") %>%
-  mutate(agesplit = cut(test_age, breaks=c(3, 3.5, 4, 4.5, 5)), split_2 = cut(test_age, breaks = c(3, 4, 5)))
+  mutate(agesplit = cut(test_age, breaks=c(3, 3.5, 4, 4.5, 5)), 
+         agesplit = factor(agesplit,labels=c("3-3.5 years", "3.5-4 years", "4-4.5 years", "4.5-5 years")))
 
 #renaming things
 names(data)[5] <- "trial_type"
@@ -283,15 +302,42 @@ data_dccs$test <- "DCCS"
   
 ```
 
+More sensible DCCS graph
+```{r}
+tmp1 <- unlist(data$trial_type)%>%
+  str_replace("pre_1", "pre")%>%
+  str_replace("pre_2", "pre")%>%
+  str_replace("pre_3", "pre")%>%
+  str_replace("pre_4", "pre")%>%
+  str_replace("pre_5", "pre")%>%
+  str_replace("pre_6", "pre")%>%
+  str_replace("post_1", "post")%>%
+  str_replace("post_2", "post")%>%
+  str_replace("post_3", "post")%>%
+  str_replace("post_4", "post")%>%
+  str_replace("post_5", "post")%>%
+  str_replace("post_6", "post")
+
+tmp <- as.data.frame(tmp1) %>%
+  dplyr::rename(switch_type = tmp1)
+tmp2 <- bind_cols(data, tmp)
+data <- tmp2
+
+data$switch_type %<>%
+  str_replace("post", "Post-switch")%>%
+  str_replace("pre", "Pre-switch")
+```
+
+
 Accuracy on DCCS task
 ```{r}
 #aggregate correct by trial type and age
-agg.data <- aggregate(data$DCCS_correct, list(data$trial_type, data$agesplit), FUN=sum)
-agg.data.len <- aggregate(data$DCCS_correct, list(data$trial_type, data$agesplit), FUN=length)
+agg.data <- aggregate(data$DCCS_correct, list(data$switch_type, data$agesplit), FUN=sum)
+agg.data.len <- aggregate(data$DCCS_correct, list(data$switch_type, data$agesplit), FUN=length)
 agg.data$x <- agg.data$x 
 agg.data.len$x <- agg.data.len$x 
 
-names(agg.data) <- c("trial_type", "agesplit", "correct")
+names(agg.data) <- c("trial_type", "Agesplit", "correct")
 agg.data$total <- agg.data.len$x
 agg.data$prop.corr <- agg.data$correct / agg.data$total
 
@@ -306,11 +352,11 @@ limits <- aes(ymax = prop.corr + err, ymin=prop.corr - err)
 #plot
 quartz()
 ggplot(data = agg.data, 
-       aes(x=trial_type, y=prop.corr, fill=agesplit)) +
+       aes(x=trial_type, y=prop.corr, fill=Agesplit)) +
   geom_bar(stat="identity", position = position_dodge())  + geom_errorbar(limits, position=dodge)+
-  ylab("Proportion correct") + 
+  ylab("Proportion Correct") + 
   xlab("Trial Type") +
-  scale_fill_brewer(palette="Set1") + facet_wrap(~agesplit)
+  scale_fill_brewer(palette="Set1")
 ```
 
 
@@ -390,18 +436,18 @@ Create a wide-form df on which to run analyses - note that these are the mean pe
 tmp <- right_join(mss.acc, mss.acc2, by = "sub_ID")
 tmp1 <- right_join(tmp, mss.acc3, by = "sub_ID") 
 d_all <- right_join(tmp1, mss.acc4, by = "sub_ID") %>%
-  dplyr::rename(SI_none = control_none, 
-         SI_all = control_all, 
-         SI_implicature = implicature, 
+  dplyr::rename(SI_none = None.x, 
+         SI_all = All.x, 
+         SI_implicature = Implicature, 
          DCCS_post = post, DCCS_pre = pre, 
-         GQ_all = all.x, 
-         GQ_most = most.x, 
-         GQ_some = some.x, 
-         GQ_none = none.x, 
-         GQ_all_correct = all.y, 
-         GQ_most_correct = most.y, 
-         GQ_some_correct = some.y, 
-         GQ_none_correct = none.y)
+         GQ_all = All.y, 
+         GQ_most = Most.x, 
+         GQ_some = Some.x, 
+         GQ_none = None.y, 
+         GQ_all_correct = All, 
+         GQ_most_correct = Most.y, 
+         GQ_some_correct = Some.y, 
+         GQ_none_correct = None)
 ```
 
 
@@ -464,6 +510,7 @@ pcor.test(d_all$SI_none, d_all$GQ_none, d_all$test_age)
 
 ```
 
+
 Partial correlations for GQ_correct with everything
 ```{r}
 #first scalar implicature
@@ -485,6 +532,7 @@ pcor.test(d_all$GQ_some_correct, d_all$DCCS_post, d_all$test_age)
 pcor.test(d_all$GQ_none_correct, d_all$DCCS_post, d_all$test_age)
 ```
 
+
 Summary of partial correlations: 
 After controlling for age, we find significant correlations between:
 
@@ -505,7 +553,7 @@ Try predicting none on the basis of control.
 ```{r}
 summary(glm(SI_none ~  DCCS_post, data=d_all, 
             family = "binomial"))
-summary(glm(SI_none ~  DCCS_post + test_age, data=d_all, 
+summary(glm(SI_none ~  GQ_none_correct + test_age, data=d_all, 
             family = "binomial"))
 summary(glm(GQ_none_correct == 0 ~  DCCS_post, data=d_all, 
             family = "binomial"))
