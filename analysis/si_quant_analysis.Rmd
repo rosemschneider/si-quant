@@ -74,10 +74,12 @@ data$correct <- data$SI_correct==1
 #filtering out NAs, adding agesplit
 data %<>%
   filter(sub_ID != "", correct != "NA") %>%
-  mutate(agesplit = cut(test_age, breaks=c(3, 3.5, 4, 4.5, 5)), agesplit = factor(agesplit,
+  mutate(agesplit = cut(test_age, breaks=c(3, 3.5, 4, 4.5, 5)), 
+         agesplit = factor(agesplit,
                            labels=c("3-3.5 years", "3.5-4 years", "4-4.5 years", "4.5-5 years"))) %>%
   filter(agesplit != "NA")
 
+#renaming for better-looking graphs
 data$type %<>%
   str_replace("control_all", "All")%>%
   str_replace("control_none", "None")%>%
@@ -88,13 +90,13 @@ data$selection %<>%
   str_replace("none", "None")%>%
   str_replace("some", "Some")
 
-#Mean and median ages
+#Find the Mean and median ages
 age <- data %>%
   mutate(split_2 = cut(test_age, breaks = c(3, 4, 5)))%>%
   group_by(split_2)%>%
   summarise(median_age = median(test_age))
 
-#in case you need this data in the future
+#use this dataframe for stats
 data_si <- data %>%
   mutate(test = "Scalar Implicature")
 ```
@@ -108,7 +110,6 @@ num_kids <- data %>%
   dplyr::distinct() %>%
   dplyr::group_by(agesplit)%>%
   dplyr::summarize(n=n())
-
 
 #accuracy by age group in different trials 
 agg.data <- aggregate(data$correct, list(data$type, data$agesplit), FUN=sum)
@@ -362,40 +363,40 @@ STATS
 
 Before we do anything else, read in Ali's data - we want to know if her data is significantly different than ours
 ```{r}
-# ali_si <- read.csv("../data/implicatures_scalarOnly_data.csv")
-# 
-# #manipulate data to look more like ours
-# d2=melt.data.frame(ali_si,c("Subj_ID","age","agegroup","list"),c("carrots", "hats", "cookies", "trains", "cats", "purses",  "keys", "shirts", "breads", "horses", "bears", "frogs", "plates", "books", "elephants", "lamps", "bananas", "butterflies", 
-# "carrots_selectionType", "hats_selectionType", "cookies_selectionType", "trains_selectionType", "cats_selectionType", "purses_selectionType",  "keys_selectionType", "shirts_selectionType", "breads_selectionType", "horses_selectionType", "bears_selectionType", "frogs_selectionType", "plates_selectionType", "books_selectionType", "elephants_selectionType", "lamps_selectionType", "bananas_selectionType", "butterflies_selectionType", 
-# "carrots_type", "hats_type", "cookies_type", "trains_type", "cats_type", "purses_type",  "keys_type", "shirts_type", "breads_type", "horses_type", "bears_type", "frogs_type", "plates_type", "books_type", "elephants_type", "lamps_type", "bananas_type", "butterflies_type"))
-# 
-# 
-# data_ali <- d2[1:918,] 
-# data_ali$selectionType <- d2$value[919:1836]
-# data_ali$type <- d2$value[1837:2754]
-# names(data_ali)[5] <- "item"
-# names(data_ali)[6] <- "correct"
-# 
-# data_ali %<>%
-#   filter(Subj_ID != "", correct != "NA") %>%
-#   mutate(agesplit = cut(age, breaks=c(3, 3.5, 4, 4.5, 5)), agesplit = factor(agesplit,
-#                            labels=c("3-3.5 years", "3.5-4 years", "4-4.5 years", "4.5-5 years"))) %>%
-#   filter(agesplit != "NA")
-# 
-# data_ali$correct <- as.character(data_ali$correct)
-# data_ali$correct <- as.numeric(data_ali$correct)
+ali_si <- read.csv("../data/implicatures_scalarOnly_data.csv")
+
+#manipulate data to look more like ours
+d2=melt.data.frame(ali_si,c("Subj_ID","age","agegroup","list"),c("carrots", "hats", "cookies", "trains", "cats", "purses",  "keys", "shirts", "breads", "horses", "bears", "frogs", "plates", "books", "elephants", "lamps", "bananas", "butterflies", 
+"carrots_selectionType", "hats_selectionType", "cookies_selectionType", "trains_selectionType", "cats_selectionType", "purses_selectionType",  "keys_selectionType", "shirts_selectionType", "breads_selectionType", "horses_selectionType", "bears_selectionType", "frogs_selectionType", "plates_selectionType", "books_selectionType", "elephants_selectionType", "lamps_selectionType", "bananas_selectionType", "butterflies_selectionType", 
+"carrots_type", "hats_type", "cookies_type", "trains_type", "cats_type", "purses_type",  "keys_type", "shirts_type", "breads_type", "horses_type", "bears_type", "frogs_type", "plates_type", "books_type", "elephants_type", "lamps_type", "bananas_type", "butterflies_type"))
+
+
+data_ali <- d2[1:918,] 
+data_ali$selectionType <- d2$value[919:1836]
+data_ali$type <- d2$value[1837:2754]
+names(data_ali)[5] <- "item"
+names(data_ali)[6] <- "correct"
+
+data_ali %<>%
+  filter(Subj_ID != "", correct != "NA") %>%
+  mutate(agesplit = cut(age, breaks=c(3, 3.5, 4, 4.5, 5)), agesplit = factor(agesplit,
+                           labels=c("3-3.5 years", "3.5-4 years", "4-4.5 years", "4.5-5 years"))) %>%
+  filter(agesplit != "NA")
+
+data_ali$correct <- as.character(data_ali$correct)
+data_ali$correct <- as.numeric(data_ali$correct)
 
 ```
 
 Summary measures for each participant with Ali's data
 ```{r}
-# #scalar implicature task
-# mss <- data_ali %>%
-#   group_by(Subj_ID, type)%>%
-#   dplyr::summarise(correct=mean(correct),
-#                    test_age = age[1], 
-#                    agesplit = agesplit[1])%>%
-#   spread(type, correct)
+#scalar implicature task
+mss <- data_ali %>%
+  group_by(Subj_ID, type)%>%
+  dplyr::summarise(correct=mean(correct),
+                   age = age[1], 
+                   agesplit = agesplit[1])%>%
+  spread(type, correct)
 ```
 
 Read in our SI data, create a summary measure per participant
@@ -407,46 +408,52 @@ data_si$SI_correct <- as.numeric(data_si$SI_correct)
 #scalar implicature task
 mss.acc <- data_si %>%
   group_by(sub_ID, type)%>%
-  dplyr::summarise(correct=mean(SI_correct))%>%
+  dplyr::summarise(correct=mean(SI_correct), 
+                   test_age = test_age[1])%>%
   spread(type, correct)
 ```
 
 Check if Ali's results are statistically different than ours - just a quick independent sample t-test
 ```{r}
-# #first with the full dataset
-# si.unequal <- full_join(mss.acc, mss, by ="test_age")
-# with(si.unequal, t.test(Implicature,some,equal.var=TRUE))
-# 
-# #then resample our data to get the sample sizes equal - ideally we should repeat this a bunch
-# si.x <- sample_n(mss.acc, 51)
-# 
-# #then, add her data to ours to do test
-# d.combined <- bind_cols(si.x, mss)
-# 
-# d.combined$age <- as.character(d.combined$age)
-# d.combined$age <- as.numeric(d.combined$age)
-# 
-# d.combined$test_age <- as.character(d.combined$test_age)
-# d.combined$test_age <- as.numeric(d.combined$test_age)
-# 
-# #the t test for implicature performance in general
-# with(d.combined, t.test(Implicature,some,equal.var=TRUE))
-# 
-# #what about by age?
-# d.younger <- d.combined %>%
-#   filter(age < 4 | test_age < 4)
-# 
-# 
-# d.older <- d.combined %>%
-#   filter(age > 4 | test_age > 4)
-# 
-# with(d.younger, t.test(Implicature,some,equal.var=TRUE))
-# with(d.older, t.test(Implicature,some,equal.var=TRUE))
-# 
-# #performance on none trials, same
-# with(d.combined, t.test(None,none,equal.var=TRUE))
-# with(d.younger, t.test(Implicature,some,equal.var=TRUE))
-# with(d.older, t.test(Implicature,some,equal.var=TRUE))
+#resample our data to get the sample sizes equal - ideally we should repeat this a bunch
+si.x <- sample_n(mss.acc, 51)
+
+#then, add her data to ours to do test
+d.combined <- bind_cols(si.x, mss)
+
+#weird number transformation
+d.combined$age <- as.character(d.combined$age)
+d.combined$age <- as.numeric(d.combined$age)
+
+d.combined$test_age <- as.character(d.combined$test_age)
+d.combined$test_age <- as.numeric(d.combined$test_age)
+
+#the t test for implicature performance in general
+with(d.combined, t.test(Implicature,some,equal.var=TRUE))
+
+#what about by age?
+d.1 <- d.combined %>%
+  filter(age < 3.5 | test_age < 3.5)
+with(d.1, t.test(Implicature,some,equal.var=TRUE))
+
+d.2 <- d.combined %>%
+  filter(age < 4 & age > 3.5 | test_age < 4 & test_age > 3.5)
+with(d.2, t.test(Implicature,some,equal.var=TRUE))
+
+d.3 <- d.combined %>%
+  filter(age < 4.5 & age > 4 | test_age < 4.5 & test_age > 4)
+with(d.3, t.test(Implicature,some,equal.var=TRUE))
+
+d.4 <- d.combined %>%
+  filter(age < 5 & age > 4.5 | test_age < 5 & test_age > 4.5)
+with(d.4, t.test(Implicature,some,equal.var=TRUE))
+
+
+#performance on none trials, same
+with(d.1, t.test(None,none,equal.var=TRUE))
+with(d.2, t.test(None,none,equal.var=TRUE))
+with(d.3, t.test(None,none,equal.var=TRUE))
+with(d.4, t.test(None,none,equal.var=TRUE))
 ```
 
 
@@ -467,9 +474,6 @@ tmp1 <- unlist(data_dccs$trial_type)%>%
   str_replace("post_5", "post")%>%
   str_replace("post_6", "post")
 
-```
-
-```{r}
 #seriously, this is so terrible
 tmp <- as.data.frame(tmp1) %>%
   dplyr::rename(switch_type = tmp1)
@@ -492,8 +496,7 @@ Now GQ
 #first mean number
 mss.acc3 <- data_gq %>%
   group_by(sub_ID, prompt)%>%
-  dplyr::summarise(mean_num = mean(num_given),
-            test_age = test_age[1]) %>%
+  dplyr::summarise(mean_num = mean(num_given)) %>%
   spread(prompt, mean_num)
 
 #then correct
@@ -552,6 +555,7 @@ First, Scalar Implicature with DCCS and SI
 ```{r}
 library(ppcor)
 #partial correlation - implicature and dccs
+#NS
 pcor.test(d_all$SI_implicature, d_all$DCCS_post, d_all$test_age)
 
 #Significant correlation between performance on implicature and none trials in SI task after controlling for age
@@ -589,7 +593,7 @@ pcor.test(d_all$SI_none, d_all$GQ_none, d_all$test_age)
 
 ```
 
-What about when GQ is scored as correct/incorrect
+What about when GQ is scored as correct/incorrect?
 Partial correlations for GQ_correct with everything
 ```{r}
 #first scalar implicature
@@ -613,37 +617,43 @@ pcor.test(d_all$GQ_some_correct, d_all$DCCS_post, d_all$test_age)
 pcor.test(d_all$GQ_none_correct, d_all$DCCS_post, d_all$test_age)
 ```
 
-
-Summary of partial correlations: 
-After controlling for age, we find significant correlations between:
-
-SI none and SI implicature  this means that kids who get SI implicature trials correct are also more likely to get SI none trials correct
-
-GQ some and GQ none trials  similar to above
-
-Si none and GQ none negative correlation, meaning that kids who do worse on SInone trials are more likely to fail GQnone trials - scored as correct, they are highly correlated
-
-GQ some and SI implicature trials correlated (when scored as correct)
-
-And GQ some trials and SI none trials also correlated (when scored as correct)
-
 GRAPHS
 
 ```{r}
-#add agesplit to large dataframe
+#add agesplit to large dataframe to make correlation graphs
 d_all %<>%
   mutate(Agesplit = cut(test_age, breaks=c(3, 3.5, 4, 4.5, 5)), 
          Agesplit = factor(Agesplit,labels=c("3-3.5 years", "3.5-4 years", "4-4.5 years", "4.5-5 years")))
 
 #SI none and SI implicature
 quartz()
-q <- qplot(SI_none, SI_implicature, col=Agesplit, 
-	ylab="Proportion of SI 'implicature' trials correct",
-	xlab="Proportion of SI 'none' trials correct",
-		position=position_jitter(.02), data=d_all) + 
-	geom_smooth(method="lm", col="black", lty=1)  +
-	geom_smooth(aes(col=Agesplit, group=Agesplit), 
-				se=FALSE, method="lm",lty=3) + coord_cartesian(ylim = c(0, 1)) 
+ggplot(d_all, aes(x=SI_none, y=SI_implicature, colour=Agesplit)) + 
+  geom_point(stat = "identity", position = position_jitter(.001), shape=16) + 
+  geom_smooth(method="lm", col="black", lty=1) + 
+  geom_smooth(aes(col=Agesplit, group=Agesplit), 
+				se=FALSE, method="lm",lty=3) + 
+  scale_colour_brewer(palette="Set1") + 
+  labs(x = "Proportion of SI 'none' trials correct", y = "Proportion of SI 'implicature' trials correct")
+
+#GQ some and SI none
+quartz()
+ggplot(d_all, aes(x=GQ_some_correct, y=SI_none, colour=Agesplit)) + 
+  geom_point(stat = "identity", position = position_jitter(.001), shape=16) + 
+  geom_smooth(method="lm", col="black", lty=1) + 
+  geom_smooth(aes(col=Agesplit, group=Agesplit), 
+				se=FALSE, method="lm",lty=3) + 
+  scale_colour_brewer(palette="Set1") + 
+  labs(y = "Proportion of SI 'none' trials correct", x = "Proportion of GQ 'some' trials correct")
+
+#GQsome and SI some
+quartz()
+ggplot(d_all, aes(x=GQ_some_correct, y=SI_implicature, colour=Agesplit)) + 
+  geom_point(stat = "identity", position = position_jitter(.001), shape=16) + 
+  geom_smooth(method="lm", col="black", lty=1) + 
+  geom_smooth(aes(col=Agesplit, group=Agesplit), 
+				se=FALSE, method="lm",lty=3) + 
+  scale_colour_brewer(palette="Set1") + 
+  labs(y = "Proportion of SI 'implicature' trials correct", x = "Proportion of GQ 'some' trials correct")
 
 #GQ some and SI implicatures
 quartz()
@@ -656,42 +666,17 @@ qplot(GQ_some_correct, SI_implicature, col=Agesplit,
 	geom_smooth(aes(col=Agesplit, group=Agesplit), 
 				se=FALSE, method="lm",lty=3)
 
-#GQ none and SI none
+#SI none with GQ none
 quartz()
-qplot(GQ_none_correct, SI_none, col=Agesplit, 
-	ylab="Proportion of SI 'none' trials correct",
-	xlab="Proportion of GQ 'none' trials correct",
-		position=position_jitter(.009), data=d_all) + 
-	geom_smooth(method="lm", col="black", lty=1) + 
-			theme_bw()+
-	geom_smooth(aes(col=Agesplit, group=Agesplit), 
-				se=FALSE, method="lm",lty=3)
+ggplot(d_all, aes(x=GQ_none_correct, y=SI_none, colour=Agesplit)) + 
+  geom_point(stat = "identity", position = position_jitter(.001), shape=16) + 
+  geom_smooth(method="lm", col="black", lty=1) + 
+  geom_smooth(aes(col=Agesplit, group=Agesplit), 
+				se=FALSE, method="lm",lty=3) + 
+  scale_colour_brewer(palette="Set1") + 
+  labs(y = "Proportion of SI 'none' trials correct", x = "Proportion of GQ 'none' trials correct")
 
-#GQ some and SI none
-quartz()
-qplot(GQ_some_correct, SI_none, col=Agesplit, 
-	ylab="Proportion of SI 'none' trials correct",
-	xlab="Proportion of GQ 'some' trials correct",
-		position=position_jitter(.001), data=d_all) +
-	geom_smooth(method="lm", col="black", lty=1) + 
-			theme_bw()+
-	geom_smooth(aes(col=Agesplit, group=Agesplit), 
-				se=FALSE, method="lm",lty=3) + coord_cartesian(ylim = c(0, 1)) 
-
-#GQnone and SI some
-quartz()
-qplot(GQ_none_correct, SI_implicature, col=Agesplit, 
-	ylab="Proportion of SI 'implicature' trials correct",
-	xlab="Proportion of GQ 'none' trials correct",
-		position=position_jitter(.001), data=d_all) +
-	geom_smooth(method="lm", col="black", lty=1) + 
-			theme_bw()+
-	geom_smooth(aes(col=Agesplit, group=Agesplit), 
-				se=FALSE, method="lm",lty=3) + coord_cartesian(ylim = c(0, 1)) 
 ```
-
-
-
 
 Linear Models
 
@@ -699,8 +684,6 @@ Try predicting none on the basis of control.
 
 ```{r}
 summary(glm(SI_none ~  DCCS_post, data=d_all, 
-            family = "binomial"))
-summary(glm(SI_none ~  GQ_none_correct + test_age, data=d_all, 
             family = "binomial"))
 summary(glm(GQ_none_correct == 0 ~  DCCS_post, data=d_all, 
             family = "binomial"))
@@ -714,20 +697,19 @@ summary(glm(GQ_some_correct ~  DCCS_post + test_age, data=d_all,
             family = "binomial"))
 ```
 
-Also try a super exploratory analysis where we put together none kids
+Try predicting SI by GQ
 ```{r}
-d_all <- d_all %>%
-  mutate(SI_wrong = ((SI_none + SI_implicature)/2) < 1) %>%
-  mutate(none_composite = ((as.numeric(GQ_none==0) + SI_none)/2) > .5)
-
-summary(glm(none_composite ~ test_age + DCCS_post, data=d_all, 
+summary(glm(SI_implicature ~  GQ_some_correct, data=d_all, 
             family = "binomial"))
-summary(glm(none_composite ~  DCCS_post, data=d_all, 
+summary(glm(GQ_some_correct ~  GQ_some_correct + test_age, data=d_all, 
             family = "binomial"))
-summary(glm(none_composite ~ test_age + DCCS_post, data=d_all, 
+summary(glm(SI_none ~  GQ_none_correct, data=d_all, 
             family = "binomial"))
-
-
+summary(glm(SI_none ~  GQ_none_correct + test_age, data=d_all, 
+            family = "binomial"))
+summary(glm(SI_implicature ~  GQ_none_correct, data=d_all, 
+            family = "binomial"))
+summary(glm(SI_implicature ~  GQ_none_correct + test_age, data=d_all, 
+            family = "binomial"))
 ```
-
 
