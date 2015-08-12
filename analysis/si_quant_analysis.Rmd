@@ -31,10 +31,9 @@ library(RCurl)
 theme_set(theme_bw())
 ```
 
+FIRST, visualize all the results, split by task
 
-SI graphs and visualizations
-
-
+SI data setup
 ```{r}
 #reading in the original wide-form dataframe
 d1 <- read.csv("../data/SI_coding.csv")
@@ -103,12 +102,12 @@ data_si <- data %>%
 
 SI graphs
 ```{r}
-# #number of kids in each age group
-# num_kids <- data %>%
-#   select(sub_ID, agesplit) %>%
-#   distinct() %>%
-#   group_by(agesplit)%>%
-#   summarize(n=n())
+#number of kids in each age group
+num_kids <- data %>%
+  dplyr::select(sub_ID, agesplit) %>%
+  dplyr::distinct() %>%
+  dplyr::group_by(agesplit)%>%
+  dplyr::summarize(n=n())
 
 
 #accuracy by age group in different trials 
@@ -161,16 +160,11 @@ ggplot(data = si_wrong,
 ```
 
 
-
-
-GQ analyses 
-
-
+GQ data setup
 ```{r}
 #read in and establish dataframe
 d1 <- read.csv("../data/GQ_coding.csv")
 d1[,c(8,10,12,14,16,18,20,22, 31, 32, 33, 34)] <- sapply(d1[,c(8,10,12,14,16,18,20,22, 31, 32, 33, 34)],as.character) #for unknown reasons this is necessary for melt.data.frame now
-
 
 #change to long form
 d2=melt.data.frame(d1,c("sub_ID", "test_age","condition", "order", "training"),c("X1_condition", "X2_condition", "X3_condition", "X4_condition", "X5_condition", "X6_condition",  "X7_condition", "X8_condition", "X1_given", "X2_given", "X3_given", "X4_given", "X5_given", "X6_given",  "X7_given", "X8_given", "X1_correct", "X2_correct", "X3_correct", "X4_correct", "X5_correct", "X6_correct",  "X7_correct", "X8_correct"))
@@ -199,6 +193,7 @@ data$num_given <- as.numeric(data$num_given)
 data$GQ_correct <-as.character(data$GQ_correct)
 data$GQ_correct <- as.numeric(data$GQ_correct)
 
+#renaming things for prettier graphs
 data$prompt %<>%
   str_replace("all", "All")%>%
   str_replace("most", "Most")%>%
@@ -210,7 +205,7 @@ data_gq <- data %>%
   mutate(test = "Give-Quantifier")
 ```
 
-Average given for each prompt by age group 
+Average given for each prompt by age group - this is not an informative graph, but is nice to have
 ```{r}
 agg.data <- aggregate(data$num_given, list(data$prompt, data$Agesplit), FUN=mean)
 agg.data.sd <- aggregate(data$num_given, list(data$prompt, data$Agesplit), FUN=sd)
@@ -263,7 +258,6 @@ ggplot(data = agg.data,
 
 
 Number given (average) Split by four age groups:
-
 ```{r}
 hist_data <- data %>%
   group_by(Agesplit, prompt, num_given)%>%
@@ -282,10 +276,7 @@ ggplot(data = hist_data, aes(x = num_given, y = prop, fill = Agesplit)) +
 ```
 
 
-DCCS
-
-
-Read in dataframe
+DCCS data setup
 ```{r}
 #wide-form
 d1 <- read.csv("../data/DCCS_coding.csv")
@@ -308,7 +299,7 @@ data_dccs$test <- "DCCS"
   
 ```
 
-More sensible DCCS graph
+More sensible DCCS graph with collapsed "pre" and "post" switch trials
 ```{r}
 tmp1 <- unlist(data$trial_type)%>%
   str_replace("pre_1", "pre")%>%
@@ -329,6 +320,7 @@ tmp <- as.data.frame(tmp1) %>%
 tmp2 <- bind_cols(data, tmp)
 data <- tmp2
 
+#renaming for prettier graphs
 data$switch_type %<>%
   str_replace("post", "Post-switch")%>%
   str_replace("pre", "Pre-switch")
@@ -366,9 +358,9 @@ ggplot(data = agg.data,
 ```
 
 
-Stats
+STATS
 
-Before we do anything else, read in Ali's data
+Before we do anything else, read in Ali's data - we want to know if her data is significantly different than ours
 ```{r}
 # ali_si <- read.csv("../data/implicatures_scalarOnly_data.csv")
 # 
@@ -392,26 +384,22 @@ Before we do anything else, read in Ali's data
 # 
 # data_ali$correct <- as.character(data_ali$correct)
 # data_ali$correct <- as.numeric(data_ali$correct)
-# 
-# data$type %<>%
-#   str_replace("all", "All")%>%
-#   str_replace("none", "None")%>%
-#   str_replace("some", "Implicature")
-# ```
 
-# Summary measures for each participant with Ali's data
-# ```{r}
+```
+
+Summary measures for each participant with Ali's data
+```{r}
 # #scalar implicature task
 # mss <- data_ali %>%
 #   group_by(Subj_ID, type)%>%
 #   dplyr::summarise(correct=mean(correct),
-#                    test_age = age[1])%>%
+#                    test_age = age[1], 
+#                    agesplit = agesplit[1])%>%
 #   spread(type, correct)
 ```
 
+Read in our SI data, create a summary measure per participant
 ```{r}
-# Now our data
-# First, SI
 #si df
 data_si$SI_correct <- as.character(data_si$SI_correct)
 data_si$SI_correct <- as.numeric(data_si$SI_correct)
@@ -425,8 +413,15 @@ mss.acc <- data_si %>%
 
 Check if Ali's results are statistically different than ours - just a quick independent sample t-test
 ```{r}
-# #first, resample our data to get the sample sizes equal 
+# #first with the full dataset
+# si.unequal <- full_join(mss.acc, mss, by ="test_age")
+# with(si.unequal, t.test(Implicature,some,equal.var=TRUE))
+# 
+# #then resample our data to get the sample sizes equal - ideally we should repeat this a bunch
 # si.x <- sample_n(mss.acc, 51)
+# 
+# #then, add her data to ours to do test
+# d.combined <- bind_cols(si.x, mss)
 # 
 # d.combined$age <- as.character(d.combined$age)
 # d.combined$age <- as.numeric(d.combined$age)
@@ -434,15 +429,13 @@ Check if Ali's results are statistically different than ours - just a quick inde
 # d.combined$test_age <- as.character(d.combined$test_age)
 # d.combined$test_age <- as.numeric(d.combined$test_age)
 # 
-# #then, add her data to ours to do test
-# d.combined <- bind_cols(si.x, mss)
-# 
 # #the t test for implicature performance in general
 # with(d.combined, t.test(Implicature,some,equal.var=TRUE))
 # 
 # #what about by age?
 # d.younger <- d.combined %>%
 #   filter(age < 4 | test_age < 4)
+# 
 # 
 # d.older <- d.combined %>%
 #   filter(age > 4 | test_age > 4)
@@ -489,7 +482,7 @@ data_dccs <- tmp2
 #dccs task summary measures by participant
 mss.acc2 <- data_dccs %>%
   group_by(sub_ID, switch_type)%>%
-  summarise(correct=mean(DCCS_correct))%>%
+  dplyr::summarise(correct=mean(DCCS_correct))%>%
   spread(switch_type, correct)
 ```
 
@@ -499,14 +492,14 @@ Now GQ
 #first mean number
 mss.acc3 <- data_gq %>%
   group_by(sub_ID, prompt)%>%
-  summarise(mean_num = mean(num_given),
+  dplyr::summarise(mean_num = mean(num_given),
             test_age = test_age[1]) %>%
   spread(prompt, mean_num)
 
 #then correct
 mss.acc4 <- data_gq %>%
   group_by(sub_ID, prompt)%>%
-  summarise(mean_correct = mean(GQ_correct))%>%
+  dplyr::summarise(mean_correct = mean(GQ_correct))%>%
   spread(prompt, mean_correct)
 ```
 
@@ -532,7 +525,7 @@ d_all <- right_join(tmp1, mss.acc4, by = "sub_ID") %>%
 ```
 
 
-SIMPLE CORRELATIONS
+CORRELATIONS
 
 First make a huge correlation matrix of all variables
 ```{r}
@@ -641,6 +634,16 @@ GRAPHS
 d_all %<>%
   mutate(Agesplit = cut(test_age, breaks=c(3, 3.5, 4, 4.5, 5)), 
          Agesplit = factor(Agesplit,labels=c("3-3.5 years", "3.5-4 years", "4-4.5 years", "4.5-5 years")))
+
+#SI none and SI implicature
+quartz()
+q <- qplot(SI_none, SI_implicature, col=Agesplit, 
+	ylab="Proportion of SI 'implicature' trials correct",
+	xlab="Proportion of SI 'none' trials correct",
+		position=position_jitter(.02), data=d_all) + 
+	geom_smooth(method="lm", col="black", lty=1)  +
+	geom_smooth(aes(col=Agesplit, group=Agesplit), 
+				se=FALSE, method="lm",lty=3) + coord_cartesian(ylim = c(0, 1)) 
 
 #GQ some and SI implicatures
 quartz()
