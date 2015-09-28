@@ -92,9 +92,10 @@ data$selection %<>%
 
 #Find the Mean and median ages
 age <- data %>%
-  mutate(split_2 = cut(test_age, breaks = c(3, 4, 5)))%>%
-  group_by(split_2)%>%
-  summarise(median_age = median(test_age))
+  dplyr::select(sub_ID, test_age, agesplit) %>%
+  dplyr::distinct() %>%
+  group_by(agesplit)%>%
+  summarise(n=n(), avg = mean(test_age))
 
 #use this dataframe for stats
 data_si <- data %>%
@@ -143,7 +144,7 @@ Okay, what kinds of items are choosing on trials when they get things wrong?
 ```{r}
 #first, filter out trials where kids got things right
 si_wrong <- data %>%
-  filter(SI_correct != 1) %>%
+  filter(SI_correct != 1, type != "All") %>%
   group_by(agesplit, type, selection)%>%
   dplyr::summarise(n=n())%>%
   dplyr::rename(Agesplit = agesplit) %>%
@@ -183,9 +184,9 @@ names(data)[9] <- "GQ_correct"
 #filtering data, creating age breaks
 data %<>%
   filter(sub_ID != "", num_given != "N/A") %>%
-  mutate(agesplit = cut(test_age, breaks=c(3, 3.5, 4, 4.5, 5)), agesplit = factor(agesplit,
-                           labels=c("3-3.5 years", "3.5-4 years", "4-4.5 years", "4.5-5 years"))) %>%
-  dplyr::rename(Agesplit = agesplit) %>%
+  mutate(split_2 = cut(test_age, breaks=c(3, 4, 5)), 
+         Agesplit = factor(split_2,
+                           labels=c("3-4 years", "4-5 years"))) %>%
   filter(Agesplit != "NA", num_given != "0 (8 oranges)", num_given != "0 (8 bananas)", num_given != "0 (8 strawberries)")
 
 #this is because num_given is a factor - need to change to a number - need to do this for standard error
@@ -266,14 +267,16 @@ hist_data <- data %>%
   group_by(Agesplit, prompt) %>%
   mutate(n.total = sum(n), prop = n/n.total)
 
+hist1 <- hist_data %>%
+  filter(prompt != "Most")
+
 #plot
 quartz()
-ggplot(data = hist_data, aes(x = num_given, y = prop, fill = Agesplit)) + 
+ggplot(data = hist1, aes(x = num_given, y = prop, fill = Agesplit)) + 
   geom_bar(stat = "identity", position = position_dodge()) + 
   xlab("Number Given") +
   ylab("Proportion of children giving in trial") + 
-  facet_wrap(agesplit~prompt) + 
-  scale_fill_brewer(palette="Set1") + facet_wrap(Agesplit ~ prompt) + theme(legend.position="none")
+  scale_fill_brewer(palette="Set1") + facet_wrap(Agesplit ~ prompt, ncol = 3) 
 ```
 
 
@@ -325,6 +328,8 @@ data <- tmp2
 data$switch_type %<>%
   str_replace("post", "Post-switch")%>%
   str_replace("pre", "Pre-switch")
+
+data$switch_type <- as.factor(data$switch_type)
 ```
 
 
@@ -348,9 +353,12 @@ agg.data$err <- sqrt((agg.data$prop.corr * agg.data$q) / agg.data$total)
 dodge <- position_dodge(width=0.9) 
 limits <- aes(ymax = prop.corr + err, ymin=prop.corr - err) 
 
+a <- agg.data
+a$trial_type <- factor(a$trial_type, levels=c("Pre-switch","Post-switch"))
+
 #plot
 quartz()
-ggplot(data = agg.data, 
+ggplot(data = a, 
        aes(x=trial_type, y=prop.corr, fill=Agesplit)) +
   geom_bar(stat="identity", position = position_dodge())  + geom_errorbar(limits, position=dodge)+
   ylab("Proportion Correct") + 
@@ -606,6 +614,7 @@ pcor.test(d_all$GQ_none_correct, d_all$SI_none, d_all$test_age)
 
 #significant between GQ some and SI none
 pcor.test(d_all$GQ_some_correct, d_all$SI_none, d_all$test_age)
+ 
 
 #NS 
 pcor.test(d_all$SI_implicature, d_all$GQ_none_correct, d_all$test_age)

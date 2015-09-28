@@ -1,0 +1,7 @@
+name: Publish Document
+account: rpubs
+server: rpubs.com
+bundleId:
+        https://api.rpubs.com/api/v1/document/99280/c0acb81e304f4f258eaebf8069b60c93
+url: http://rpubs.com/rosemschneider/99280
+when: 1439245623.46861
