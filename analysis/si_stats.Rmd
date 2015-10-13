@@ -1,0 +1,99 @@
+title: "SI_stats"
+output: html_document
+---
+Horowitz, Mekler, Schneider, Frank, etc. 
+Analyses for Scalar Implicature, Give-Quantifier, and DCCS
+
+
+Set up Rmd parameters
+```{r}
+library(knitr)
+opts_chunk$set(cache=TRUE, message=FALSE, warning=FALSE)
+```
+
+Preliminaries
+```{r}
+rm(list=ls())
+library(ggplot2)
+library(reshape)
+library(plyr)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(markdown)
+library(directlabels)
+library(magrittr)
+library(bootstrap)
+library(RCurl)
+library(langcog)
+
+
+theme_set(theme_bw())
+```
+
+Experiment 1 - read in data
+```{r}
+d <- read.csv("../data/implicatures_adhocScalar_data.csv")
+
+#fill in the selection types for easier analyses
+d_exp1=melt.data.frame(d,c("Subj_ID", "age","agegroup", "list"),c("carrots", "hats", "cookies", "trains", "cats", "purses",  "keys", "shirts", "breads", "horses", "bears", "frogs", "plates", "books", "elephants", "lamps", "bananas", "butterflies", 
+"carrots_condition", "hats_condition", "cookies_condition", "trains_condition", "cats_condition", "purses_condition",  "keys_condition", "shirts_condition", "breads_condition", "horses_condition", "bears_condition", "frogs_condition", "plates_condition", "books_condition", "elephants_condition", "lamps_condition", "bananas_condition", "butterflies_condition", 
+"carrots_type", "hats_type", "cookies_type", "trains_type", "cats_type", "purses_type",  "keys_type", "shirts_type", "breads_type", "horses_type", "bears_type", "frogs_type", "plates_type", "books_type", "elephants_type", "lamps_type", "bananas_type", "butterflies_type"))
+
+data_exp1 <- d_exp1[1:864,] 
+data_exp1$condition <- d_exp1$value[865:1728]
+data_exp1$type <- d_exp1$value[1729:2592]
+names(data_exp1)[5] <- "item"
+names(data_exp1)[6] <- "correct"
+
+data_exp1$correct <- data_exp1$correct==1
+
+attach(data_exp1)
+data_exp1$trial_type[type == "implicature"] <- "implicature"
+data_exp1$trial_type[type != "implicature"] <- "control"
+detach(data_exp1)
+
+data_exp1 %<>%
+  filter(Subj_ID != "", correct != "NA") %>%
+  mutate(agesplit = cut(age, breaks=c(4, 4.5, 5)),
+         agesplit = factor(agesplit,
+                           labels=c("4-4.5 years", "4.5-5 years"))) %>%
+  filter(agesplit != "NA")
+
+#renaming for graphs
+data_exp1$type <- factor(data_exp1$type, 
+					levels = c("implicature","control_comparison", 
+					"control_distractor",
+					"control_none","control_unambiguous", "control_all"), 
+					labels = c("Implicature","Comparison", 
+					"Distractor",
+					"None","Unambig. Some", "All"))
+
+data_exp1$condition <- factor(data_exp1$condition, 
+					levels = c("adhoc","scalar"), 
+					labels = c("Ad-hoc","Scalar"))
+
+data_exp1 %<>%
+  dplyr::rename(Age = agesplit)
+```
+
+Performance summaries
+```{r}
+#look at only SI trials
+d <- data_exp1 %>%
+  filter(condition == "Scalar")
+
+##First test against chance
+#All
+t.test(subset(d, agegroup=="4.0--4.5" & type=="All")$correct, mu=0.5)
+t.test(subset(d, agegroup=="4.5--5.0" & type=="All")$correct, mu=0.5)
+
+#Some
+t.test(subset(d, agegroup=="4.0--4.5" & type=="Implicature")$correct, mu=0.5)
+t.test(subset(d, agegroup=="4.5--5.0" & type=="Implicature")$correct, mu=0.5)
+
+#none
+t.test(subset(d, agegroup=="4.0--4.5" & type=="None")$correct, mu=0.5)
+t.test(subset(d, agegroup=="4.5--5.0" & type=="None")$correct, mu=0.5)
+
+```
