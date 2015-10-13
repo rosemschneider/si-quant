@@ -25,10 +25,30 @@ library(directlabels)
 library(magrittr)
 library(bootstrap)
 library(RCurl)
+library(langcog)
 
 
 theme_set(theme_bw())
 ```
+
+```{r}
+## NA functions
+na.mean <- function(x) {mean(x,na.rm=T)}
+na.median <- function(x) {median(x,na.rm=T)}
+na.sum <- function(x) {sum(x,na.rm=T)}
+na.sd <- function(x) {sd(x,na.rm=T)}
+
+## for bootstrapping 95% confidence intervals
+theta <- function(x,xdata,na.rm=T) {mean(xdata[x],na.rm=na.rm)}
+ci.low <- function(x,na.rm=T) {
+  mean(x,na.rm=na.rm) - 
+    quantile(bootstrap(1:length(x),1000,theta,x,na.rm=na.rm)$thetastar,.025,na.rm=na.rm)}
+
+ci.high <- function(x,na.rm=T) {
+  quantile(bootstrap(1:length(x),1000,theta,x,na.rm=na.rm)$thetastar,.975,na.rm=na.rm) -
+    mean(x,na.rm=na.rm)}
+```
+
 
 Read in individual dataframes from all studies
 
@@ -215,10 +235,10 @@ gq <- data
 #filtering data, creating age breaks
 gq %<>%
   filter(sub_ID != "", num_given != "N/A") %>%
-  mutate(split_2 = cut(test_age, breaks=c(3, 4, 5)), 
-         Agesplit = factor(split_2,
-                           labels=c("3-4 years", "4-5 years"))) %>%
-  filter(Agesplit != "NA", num_given != "0 (8 oranges)", num_given != "0 (8 bananas)", num_given != "0 (8 strawberries)")
+  mutate(agesplit = cut(test_age, breaks=c(3, 3.5, 4, 4.5, 5)), 
+         agesplit = factor(agesplit,
+                           labels=c("3-3.5 years", "3.5-4 years", "4-4.5 years", "4.5-5 years"))) %>%
+  filter(agesplit != "NA", num_given != "0 (8 oranges)", num_given != "0 (8 bananas)", num_given != "0 (8 strawberries)")
 
 #this is because num_given is a factor - need to change to a number - need to do this for standard error
 gq$num_given <- as.character(gq$num_given)
@@ -281,71 +301,106 @@ dccs$switch_type %<>%
 
 dccs$trial_type <- factor(dccs$trial_type, levels=c("Pre-switch","Post-switch"))
 
-#df for further analyses
-data_dccs <- data
-data_dccs$test <- "DCCS"
 ```
 
 GRAPHS
 
 Performance on experiment 1
 ```{r}
-agg.data <- aggregate(data_exp1$correct, list(data_exp1$condition, data_exp1$type, data_exp1$trial_type, data_exp1$Age), FUN=sum)
-agg.data.len <- aggregate(data_exp1$correct, list(data_exp1$condition, data_exp1$type, data_exp1$trial_type, data_exp1$Age), FUN=length)
-agg.data$x <- agg.data$x 
-names(agg.data) <- c("implicature_type", "type", "trial_type", "Age", "correct")
-agg.data$total <- agg.data.len$x
-agg.data$prop.corr <- agg.data$correct / agg.data$total
-#prop correct and standard error
-agg.data$q <- 1 - agg.data$prop.corr
-agg.data$err <- sqrt((agg.data$prop.corr * agg.data$q) / agg.data$total)
+agg.1<- data_exp1 %>%
+  mutate(correct = as.integer(correct)) %>%
+  group_by(condition, type, trial_type, Age)%>%
+  multi_boot_standard("correct", na.rm=T)
+
+# agg.data <- aggregate(data_exp1$correct, list(data_exp1$condition, data_exp1$type, data_exp1$trial_type, data_exp1$Age), FUN=sum)
+# agg.data.len <- aggregate(data_exp1$correct, list(data_exp1$condition, data_exp1$type, data_exp1$trial_type, data_exp1$Age), FUN=length)
+# agg.data$x <- agg.data$x 
+# names(agg.data) <- c("implicature_type", "type", "trial_type", "Age", "correct")
+# agg.data$total <- agg.data.len$x
+# agg.data$prop.corr <- agg.data$correct / agg.data$total
+
+# 
+# #find the total number of kids in each age group and n total
+# num_kids <- d_exp1 %>%
+#   dplyr::select(Subj_ID, agegroup) %>%
+#   dplyr::distinct() %>%
+#   dplyr::group_by(agegroup)%>%
+#   dplyr::summarize(n=n())%>%
+#   dplyr::mutate(total.n = sum(n))
+# 
+# agg.data$sd <- sd(agg.data$prop.corr, na.rm = FALSE)
+# 
+# #prop correct and standard error
+# agg.data$q <- 1 - agg.data$prop.corr
+# agg.data$err <- sqrt((agg.data$prop.corr * agg.data$q) / agg.data$total)
+# agg.data$CIerr <- qnorm(0.975)*agg.data$error/sqrt(n)
+
 
 #limits for graphing
 dodge <- position_dodge(width=0.9) 
-limits <- aes(ymax = prop.corr + err, ymin=prop.corr - err) 
+limits <- aes(ymax = ci_upper, ymin=ci_lower) 
 
 #save df for later
 agg.exp1 <- agg.data
 
 #graph
 quartz()
-ggplot(data = agg.data, 
-       aes(x=type, y=prop.corr, fill=Age)) +
-  geom_bar(stat="identity", position = position_dodge())  + geom_errorbar(limits, position=dodge)+
+ggplot(data = agg.1, 
+       aes(x=type, y=mean, fill=Age)) +
+  geom_bar(stat="identity", position = position_dodge(1)) +
+  geom_linerange(aes(ymin = ci_lower,
+                      ymax = ci_upper),
+                  size = .8,
+                  show_guide = FALSE,
+                 position=position_dodge(1)) +
   ylab("Proportion correct") + 
   xlab("Trial Type") +
-  scale_fill_brewer(palette="Set3") + facet_grid(~implicature_type, scale="free_x") + geom_hline(yintercept = .5, linetype = "dashed")
+  theme_bw(base_size=14) +
+  scale_fill_brewer(palette="Set1") + facet_grid(~condition, scale="free_x") + geom_hline(yintercept = .5, linetype = "dashed")
 ```
 
 Experiment 2
 ```{r}
-agg.data <- aggregate(data_exp2$correct, list(data_exp2$type, data_exp2$trial_type, data_exp2$Age), FUN=sum)
-agg.data.len <- aggregate(data_exp2$correct, list(data_exp2$type, data_exp2$trial_type, data_exp2$Age), FUN=length)
-agg.data$x <- agg.data$x 
-agg.data.len$x <- agg.data.len$x 
+agg.2<- data_exp2 %>%
+  mutate(correct = as.integer(correct)) %>%
+  group_by(type, trial_type, Age)%>%
+  multi_boot_standard("correct", na.rm=T)
 
-names(agg.data) <- c( "trial_type", "implicature", "Age", "correct")
-agg.data$total <- agg.data.len$x
-agg.data$prop.corr <- agg.data$correct / agg.data$total
 
-agg.data$q <- 1 - agg.data$prop.corr
-agg.data$err <- sqrt((agg.data$prop.corr * agg.data$q) / agg.data$total)
 
-#save df for later
-agg.exp2 <- agg.data
+# agg.data <- aggregate(data_exp2$correct, list(data_exp2$type, data_exp2$trial_type, data_exp2$Age), FUN=sum)
+# agg.data.len <- aggregate(data_exp2$correct, list(data_exp2$type, data_exp2$trial_type, data_exp2$Age), FUN=length)
+# agg.data$x <- agg.data$x 
+# agg.data.len$x <- agg.data.len$x 
+# 
+# names(agg.data) <- c( "trial_type", "implicature", "Age", "correct")
+# agg.data$total <- agg.data.len$x
+# agg.data$prop.corr <- agg.data$correct / agg.data$total
+# 
+# agg.data$q <- 1 - agg.data$prop.corr
+# agg.data$err <- sqrt((agg.data$prop.corr * agg.data$q) / agg.data$total)
+# 
+# #save df for later
+# agg.exp2 <- agg.data
 
 #graph
 quartz()
-ggplot(data = agg.data, 
-       aes(x=trial_type, y=prop.corr, fill=Age)) +
-  geom_bar(stat="identity", position = position_dodge())  + geom_errorbar(limits, position=dodge)+
+ggplot(data = agg.2, 
+       aes(x=type, y=mean, fill=Age)) +
+  geom_bar(stat="identity", position = position_dodge(1)) +
+  geom_linerange(aes(ymin = ci_lower,
+                      ymax = ci_upper),
+                  size = .8,
+                  show_guide = FALSE,
+                 position=position_dodge(1)) +
   ylab("Proportion correct") + 
   xlab("Trial Type") +
+  theme_bw(base_size=14) +
   scale_fill_brewer(palette="Set1") + geom_hline(yintercept = .5, linetype = "dashed")
 
 ##analysis of what kinds of items kids chose when they picked the wrong thing
 exp2_wrong <- data_exp2 %>%
-  filter(correct != "TRUE") %>%
+  filter(correct != "TRUE", type != "All") %>%
   group_by(Age, type, selectionType)%>%
   dplyr::summarise(n=n())%>%
   mutate(n.total = sum(n), prop = n/n.total)
@@ -363,30 +418,108 @@ ggplot(data = exp2_wrong,
 Experiment 3
 Scalar Implicatures
 ```{r}
-#accuracy by age group in different trials 
-agg.data <- aggregate(data_SIexp3$correct, list(data_SIexp3$type, data_SIexp3$Age), FUN=sum)
-agg.data.len <- aggregate(data_SIexp3$correct, list(data_SIexp3$type, data_SIexp3$Age), FUN=length)
-agg.data$x <- agg.data$x 
-agg.data.len$x <- agg.data.len$x 
-
-names(agg.data) <- c("type", "Age", "correct")
-agg.data$total <- agg.data.len$x
-agg.data$prop.corr <- agg.data$correct / agg.data$total
-
-#prop correct and standard error
-agg.data$q <- 1 - agg.data$prop.corr
-agg.data$err <- sqrt((agg.data$prop.corr * agg.data$q) / agg.data$total)
-
-#save for later
-agg.exp3.si <- agg.data
+# #accuracy by age group in different trials 
+# agg.data <- aggregate(data_SIexp3$correct, list(data_SIexp3$type, data_SIexp3$Age), FUN=sum)
+# agg.data.len <- aggregate(data_SIexp3$correct, list(data_SIexp3$type, data_SIexp3$Age), FUN=length)
+# agg.data$x <- agg.data$x 
+# agg.data.len$x <- agg.data.len$x 
+# 
+# names(agg.data) <- c("type", "Age", "correct")
+# agg.data$total <- agg.data.len$x
+# agg.data$prop.corr <- agg.data$correct / agg.data$total
+# 
+# #prop correct and standard error
+# agg.data$q <- 1 - agg.data$prop.corr
+# agg.data$err <- sqrt((agg.data$prop.corr * agg.data$q) / agg.data$total)
+# 
+# #save for later
+# agg.exp3.si <- agg.data
+agg.3 <- data_SIexp3 %>%
+  mutate(correct = as.integer(correct)) %>%
+  group_by(type, Age)%>%
+  multi_boot_standard("correct", na.rm=T)
 
 #plot
 quartz()
-ggplot(data = agg.data, 
-       aes(x=type, y=prop.corr, fill=Age)) +
-  geom_bar(stat="identity", position = position_dodge())  + geom_errorbar(limits, position=dodge)+
+ggplot(data = agg.3, 
+       aes(x=type, y=mean, fill=Age)) +
+  geom_bar(stat="identity", position = position_dodge(1)) +
+  geom_linerange(aes(ymin = ci_lower,
+                      ymax = ci_upper),
+                  size = .8,
+                  show_guide = FALSE,
+                 position=position_dodge(1)) +
   ylab("Proportion correct") + 
   xlab("Trial Type") +
+  theme_bw(base_size=14) +
   scale_fill_brewer(palette="Set1") + geom_hline(yintercept = .5, linetype = "dashed")
 ```
 
+DCCS
+```{r}
+agg.DCCS <- dccs %>%
+  mutate(DCCS_correct = as.integer(DCCS_correct)) %>%
+  group_by(switch_type, agesplit)%>%
+  multi_boot_standard("DCCS_correct", na.rm=T)%>%
+  rename(Age=agesplit)
+
+agg.DCCS$switch_type <- factor(agg.DCCS$switch_type, levels=c("Pre-switch","Post-switch"))
+
+
+quartz()
+ggplot(data = agg.DCCS, 
+       aes(x=switch_type, y=mean, fill=Age)) +
+  geom_bar(stat="identity", position = position_dodge(1)) +
+  geom_linerange(aes(ymin = ci_lower,
+                      ymax = ci_upper),
+                  size = .8,
+                  show_guide = FALSE,
+                 position=position_dodge(1)) +
+  ylab("Proportion correct") + 
+  xlab("Trial Type") +
+  theme_bw(base_size=14) +
+  scale_fill_brewer(palette="Set1") + geom_hline(yintercept = .5, linetype = "dashed")
+```
+
+GQ
+```{r}
+agg.gq <- data_gq %>%
+  mutate(GQ_correct = as.integer(GQ_correct)) %>%
+  group_by(prompt, agesplit)%>%
+  multi_boot_standard("GQ_correct", na.rm=T)%>%
+  rename(Age=agesplit)
+
+quartz()
+ggplot(data = agg.gq, 
+       aes(x=prompt, y=mean, fill=Age)) +
+  geom_bar(stat="identity", position = position_dodge(1)) +
+  geom_linerange(aes(ymin = ci_lower,
+                      ymax = ci_upper),
+                  size = .8,
+                  show_guide = FALSE,
+                 position=position_dodge(1)) +
+  ylab("Proportion correct") + 
+  xlab("Quantifier Prompt") +
+  theme_bw(base_size=14) +
+  scale_fill_brewer(palette="Set1") + geom_hline(yintercept = .5, linetype = "dashed")
+
+
+hist_data <- data_gq %>%
+  filter(prompt != "Most", prompt != "All")%>%
+  group_by(agesplit, prompt, num_given)%>%
+  dplyr::summarise(n = n()) %>%
+  group_by(agesplit, prompt) %>%
+  mutate(n.total = sum(n), prop = n/n.total)%>%
+  rename(Age=agesplit)
+
+
+quartz()
+ggplot(data = hist_data, 
+       aes(x=num_given, y=prop, fill=Age)) +
+  geom_bar(stat="identity", position = position_dodge(1)) +
+  ylab("Proportion of children giving number") + 
+  xlab("Number of items") +
+  theme_bw(base_size=14) +
+  scale_fill_brewer(palette="Set1") + facet_wrap(Age~prompt, nrow = 4) + theme(legend.position="none")
+
+```

@@ -153,10 +153,10 @@ si_wrong <- data %>%
 #now graph
 quartz()
 ggplot(data = si_wrong, 
-       aes(x=selection, y=n, fill=Agesplit)) +
+       aes(x=selection, y=prop, fill=Agesplit)) +
   geom_bar(stat="identity", position = position_dodge())  +
-  ylab("Count of children choosing in trial") + 
-  xlab("Selection Type") + facet_wrap(~type) +
+  ylab("Proportion of children choosing in trial") + 
+  xlab("Selection Type") + facet_wrap(~type, scale="free_x") +
   scale_fill_brewer(palette="Set1")
   
 ```
@@ -594,6 +594,9 @@ pcor.test(d_all$SI_implicature, d_all$GQ_some, d_all$test_age)
 pcor.test(d_all$SI_none, d_all$GQ_some, d_all$test_age)
 
 #NS
+d_exclude <- d_all %>%
+  filter(test_age <= 3.5 | test_age >= 4)
+
 pcor.test(d_all$SI_implicature, d_all$GQ_none, d_all$test_age)
 
 #very significant negative correlation between performance on SI_none and GQ_none, meaning that kids who do worse on SI_none are more likely to give all 8 objects for none
@@ -618,6 +621,7 @@ pcor.test(d_all$GQ_some_correct, d_all$SI_none, d_all$test_age)
 
 #NS 
 pcor.test(d_all$SI_implicature, d_all$GQ_none_correct, d_all$test_age)
+pcor.test(d_exclude$SI_implicature, d_exclude$GQ_none_correct, d_exclude$test_age)
 
 #now DCCS
 #NS
@@ -710,15 +714,20 @@ Try predicting SI by GQ
 ```{r}
 summary(glm(SI_implicature ~  GQ_some_correct, data=d_all, 
             family = "binomial"))
-summary(glm(GQ_some_correct ~  GQ_some_correct + test_age, data=d_all, 
+summary(glm(SI_implicature ~  GQ_some_correct + test_age, data=d_all, 
             family = "binomial"))
 summary(glm(SI_none ~  GQ_none_correct, data=d_all, 
             family = "binomial"))
 summary(glm(SI_none ~  GQ_none_correct + test_age, data=d_all, 
             family = "binomial"))
-summary(glm(SI_implicature ~  GQ_none_correct, data=d_all, 
+summary(glm(SI_implicature ~  GQ_some_correct, data=d_all, 
             family = "binomial"))
-summary(glm(SI_implicature ~  GQ_none_correct + test_age, data=d_all, 
+summary(glm(SI_implicature ~  GQ_some_correct + test_age, data=d_exclude, 
             family = "binomial"))
+```
+
+Super exploratory - group all the kids who failed on scalar implicature together, try to predict based on failure
+```{r}
+
 ```
 
