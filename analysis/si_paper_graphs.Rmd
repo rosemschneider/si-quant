@@ -35,7 +35,7 @@ Read in individual dataframes from all studies
 
 Experiment 1: Adhoc and scalar items
 ```{r}
-d <- read.csv("../data/implicatures_adhocScalar_data.csv")
+d <- read.csv("../data/implicatures_adhocScalar_data-ACHexp1.csv")
 
 #fill in the selection types for easier analyses
 d_exp1=melt.data.frame(d,c("Subj_ID", "age","agegroup", "list"),c("carrots", "hats", "cookies", "trains", "cats", "purses",  "keys", "shirts", "breads", "horses", "bears", "frogs", "plates", "books", "elephants", "lamps", "bananas", "butterflies", 
@@ -81,7 +81,7 @@ data_exp1 %<>%
 
 Experiment 2: Scalar items only
 ```{r}
-d2 <- read.csv("../data/implicatures_scalarOnly_data.csv")
+d2 <- read.csv("../data/implicatures_scalarOnly_data-ACHexp2.csv")
 
 data_exp2=melt.data.frame(d2,c("Subj_ID","age","agegroup","list"),c("carrots", "hats", "cookies", "trains", "cats", "purses",  "keys", "shirts", "breads", "horses", "bears", "frogs", "plates", "books", "elephants", "lamps", "bananas", "butterflies", 
 "carrots_selectionType", "hats_selectionType", "cookies_selectionType", "trains_selectionType", "cats_selectionType", "purses_selectionType",  "keys_selectionType", "shirts_selectionType", "breads_selectionType", "horses_selectionType", "bears_selectionType", "frogs_selectionType", "plates_selectionType", "books_selectionType", "elephants_selectionType", "lamps_selectionType", "bananas_selectionType", "butterflies_selectionType", 
@@ -134,7 +134,7 @@ Experiment 3: SI, GQ, DCCS
 Scalar Implicature first
 ```{r}
 #reading in the original wide-form dataframe
-d3 <- read.csv("../data/SI_coding.csv")
+d3 <- read.csv("../data/SI_data_RMSexp3.csv")
 
 #fill in the selection types for easier analyses
 d3 %<>%
@@ -195,7 +195,7 @@ data_SIexp3 %<>%
 GIVE-QUANTIFIER
 ```{r}
 #read in and establish dataframe
-g <- read.csv("../data/GQ_coding.csv")
+g <- read.csv("../data/GQ_data_RMSexp3.csv")
 g[,c(8,10,12,14,16,18,20,22, 31, 32, 33, 34)] <- sapply(g[,c(8,10,12,14,16,18,20,22, 31, 32, 33, 34)],as.character) #for unknown reasons this is necessary for melt.data.frame now
 
 #change to long form
@@ -242,7 +242,7 @@ data_gq <- gq %>%
 DCCS
 ```{r}
 #wide-form
-dc <- read.csv("../data/DCCS_coding.csv")
+dc <- read.csv("../data/DCCS_data_RMSexp3.csv")
 #long form
 dccs=melt.data.frame(dc,c("sub_ID","test_age","condition", "order"),c("pre_1", "pre_2", "pre_3", "pre_4", "pre_5", "pre_6",  "post_1", "post_2", "post_3", "post_4", "post_5", "post_6"))
 
