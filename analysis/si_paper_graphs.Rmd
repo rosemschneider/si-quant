@@ -26,6 +26,7 @@ library(magrittr)
 library(bootstrap)
 library(RCurl)
 library(langcog)
+library(RColorBrewer)
 
 
 theme_set(theme_bw())
@@ -61,6 +62,15 @@ data_exp1 %<>%
          agesplit = factor(agesplit,
                            labels=c("4-4.5 years", "4.5-5 years"))) %>%
   filter(agesplit != "NA")
+
+data %<>%
+  filter(condition == "scalar") %>%
+  mutate(agesplit = cut(age, breaks=c(4, 4.5, 5)),
+         agesplit = factor(agesplit,
+                           labels=c("4-4.5 years", "4.5-5 years")))
+
+check <- data_exp1 %>%
+  filter(condition == "Scalar")
 
 #renaming for graphs
 data_exp1$type <- factor(data_exp1$type, 
@@ -122,12 +132,19 @@ data_exp2$selectionType <- factor(data_exp2$selectionType,
 					"some"), 
 					labels = c("All","None", 
 					"Some"))
-data_exp2$trial_type <- factor(data_exp2$trial_type, 
+data_exp2$trial_type <- factor(data_exp2$trial_tyçpe, 
                                levels = c ("control", "implicature"), 
                                labels = c("Control", "Implicature")) 
 
 data_exp2 %<>%
   rename(Age = agesplit)
+```
+
+Exp 2 age details 
+```{r}
+age2 <- data_exp2 %>%
+  group_by(Age)%>%
+  summarise(mean = mean(age), sd = sd(age), median = median(age))
 ```
 
 Experiment 3: SI, GQ, DCCS
@@ -317,12 +334,12 @@ agg.1<- data_exp1 %>%
 # agg.data$CIerr <- qnorm(0.975)*agg.data$error/sqrt(n)
 
 
-#limits for graphing
-dodge <- position_dodge(width=0.9) 
-limits <- aes(ymax = ci_upper, ymin=ci_lower) 
+# #limits for graphing
+# dodge <- position_dodge(width=0.9) 
+# limits <- aes(ymax = ci_upper, ymin=ci_lower) 
 
 #save df for later
-agg.exp1 <- agg.data
+# agg.exp1 <- agg.data
 
 #graph
 quartz()
@@ -337,8 +354,58 @@ ggplot(data = agg.1,
   ylab("Proportion correct") + 
   xlab("Trial Type") +
   theme_bw(base_size=14) +
-  scale_fill_brewer(palette="Set1") + facet_grid(~condition, scale="free_x") + geom_hline(yintercept = .5, linetype = "dashed")
+  scale_fill_manual(values = c("#4EB3D3", "#0868AC")) + facet_grid(~condition, scale="free_x") + geom_hline(yintercept = .5, linetype = "dashed")
 ```
+
+Histogram of bimodal responses
+```{r}
+imp_hist <- data_exp1 %>%
+  filter(condition == "Scalar" & type == "Implicature")%>%
+  mutate(correct = as.integer(correct))
+
+quartz()
+hist(imp_hist$correct, main = paste('"Some" trials'), xlab = 'Performance on "some" trials')
+
+#ggplot
+quartz()
+ggplot(d, aes(x = correct), width = 50, fill = type) + geom_histogram(stat = "bin", position = "dodge") + ylab("Frequency") + xlab('Proportion of trials correct') + theme_bw(base_size=18) + facet_grid(~type)
+
+none_hist <- data_exp1 %>%
+  filter(condition == "Scalar" & type == "None") %>%
+  mutate(correct = as.numeric(correct))
+
+quartz()
+hist(none_hist$correct, main = paste('"None" trials'), xlab = 'Performance on "none" trials')
+```
+
+Individual differences
+```{r}
+ms <- ddply(data_exp1, .(type, condition, Subj_ID), summarise, 
+	mean = mean(correct),
+	agegroup = agegroup[1])
+
+names(ms) <- c("type", "condition", "Subj_ID", "mean", "Age")
+cs <- cast(ms, Subj_ID + Age ~ type + condition, value="mean")
+
+mss.acc <- data_exp1 %>%
+  dplyr::group_by(Subj_ID, condition, type)%>%
+  dplyr::summarise(mean=mean(correct), 
+                   agegroup = agegroup[1])%>%
+
+cs <- cast(mss.acc, Subj_ID + agegroup ~ type + condition, value="mean")
+
+#individual differences plot
+quartz()
+ggplot(cs, aes(x=None_Scalar, y=Implicature_Scalar, colour=agegroup)) + 
+  geom_point(stat = "identity", position = position_jitter(.02), shape=16) +
+  geom_smooth(method="lm", col="black", lty=1) + 
+  geom_smooth(aes(col=agegroup, group=agegroup), 
+				se=FALSE, method="lm",lty=3) + scale_colour_manual(values = c("#4EB3D3", "#0868AC")) +
+  labs(x = 'Proportion of "none" trials correct', y = 'Proportion of "some" trials correct')
+
+```
+
+
 
 Experiment 2
 ```{r}
@@ -377,7 +444,23 @@ ggplot(data = agg.2,
   ylab("Proportion correct") + 
   xlab("Trial Type") +
   theme_bw(base_size=14) +
-  scale_fill_brewer(palette="Set1") + geom_hline(yintercept = .5, linetype = "dashed")
+  scale_fill_manual(values = c("#4EB3D3", "#2B8CBE", "#0868AC", "#084081")) + geom_hline(yintercept = .5, linetype = "dashed")
+
+# mss.acc <- data_exp2 %>%
+#   group_by(Subj_ID, type)%>%
+#   dplyr::summarise(correct=mean(correct), 
+#                    Age = Age[1])%>%
+#   spread(type, correct)
+
+# #individual differences plot
+# ggplot(mss.acc, aes(x=None, y=Some, colour=Age)) + 
+#   geom_point(stat = "identity", position = position_jitter(.05), shape=16) + 
+#   geom_smooth(method="lm", col="black", lty=1) + 
+#   geom_smooth(aes(col=Age, group=Age), 
+# 				se=FALSE, method="lm",lty=3) + 
+#   labs(x = "Proportion of SI 'none' trials correct", y = "Proportion of SI 'implicature' trials correct") + scale_fill_manual(values = c("#4EB3D3", "#2B8CBE", "#0868AC", "#084081"))
+
+
 
 ##analysis of what kinds of items kids chose when they picked the wrong thing
 exp2_wrong <- data_exp2 %>%
@@ -386,14 +469,16 @@ exp2_wrong <- data_exp2 %>%
   dplyr::summarise(n=n())%>%
   mutate(n.total = sum(n), prop = n/n.total)
 
+wrong <- exp2_wrong[c(1:8, 10:15),] 
+    
 #now graph
 quartz()
-ggplot(data = exp2_wrong, 
-       aes(x=selectionType, y=n, fill=Age)) +
+ggplot(data = wrong, 
+       aes(x=selectionType, y=prop, fill=Age)) +
   geom_bar(stat="identity", position = position_dodge())  +
   ylab("Proportion of children choosing") + 
   xlab("Selection Type") + facet_wrap(~type, scale="free_x") +
-  scale_fill_brewer(palette="Set1")
+  scale_fill_manual(values = c("#4EB3D3", "#2B8CBE", "#0868AC", "#084081"))
 ```
 
 Experiment 3
@@ -433,7 +518,7 @@ ggplot(data = agg.3,
   ylab("Proportion correct") + 
   xlab("Trial Type") +
   theme_bw(base_size=14) +
-  scale_fill_brewer(palette="Set1") + geom_hline(yintercept = .5, linetype = "dashed")
+  scale_fill_manual(values = c("#4EB3D3", "#2B8CBE", "#0868AC", "#084081")) + geom_hline(yintercept = .5, linetype = "dashed")
 ```
 
 DCCS
@@ -445,6 +530,8 @@ agg.DCCS <- dccs %>%
   rename(Age=agesplit)
 
 agg.DCCS$switch_type <- factor(agg.DCCS$switch_type, levels=c("Pre-switch","Post-switch"))
+agg.DCCS %<>%
+  filter(switch_type=="Post-switch")
 
 
 quartz()
@@ -459,7 +546,7 @@ ggplot(data = agg.DCCS,
   ylab("Proportion correct") + 
   xlab("Trial Type") +
   theme_bw(base_size=14) +
-  scale_fill_brewer(palette="Set1") + geom_hline(yintercept = .5, linetype = "dashed")
+  scale_fill_manual(values = c("#4EB3D3", "#2B8CBE", "#0868AC", "#084081")) + geom_hline(yintercept = .5, linetype = "dashed")
 ```
 
 GQ
@@ -482,7 +569,7 @@ ggplot(data = agg.gq,
   ylab("Proportion correct") + 
   xlab("Quantifier Prompt") +
   theme_bw(base_size=14) +
-  scale_fill_brewer(palette="Set1") + geom_hline(yintercept = .5, linetype = "dashed")
+  scale_fill_manual(values = c("#4EB3D3", "#2B8CBE", "#0868AC", "#084081")) + geom_hline(yintercept = .5, linetype = "dashed")
 
 
 hist_data <- data_gq %>%
@@ -500,7 +587,7 @@ ggplot(data = hist_data,
   geom_bar(stat="identity", position = position_dodge(1)) +
   ylab("Proportion of children giving number") + 
   xlab("Number of items") +
-  theme_bw(base_size=14) +
-  scale_fill_brewer(palette="Set1") + facet_wrap(Age~prompt, nrow = 4) + theme(legend.position="none")
+  theme_bw(base_size=13.5) +
+  scale_fill_manual(values = c("#4EB3D3", "#2B8CBE", "#0868AC", "#084081")) + facet_wrap(Age~prompt, ncol = 8) + theme(legend.position="none") 
 
 ```

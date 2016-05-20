@@ -396,16 +396,6 @@ data_ali$correct <- as.numeric(data_ali$correct)
 
 ```
 
-Summary measures for each participant with Ali's data
-```{r}
-#scalar implicature task
-mss <- data_ali %>%
-  group_by(Subj_ID, type)%>%
-  dplyr::summarise(correct=mean(correct),
-                   age = age[1], 
-                   agesplit = agesplit[1])%>%
-  spread(type, correct)
-```
 
 Read in our SI data, create a summary measure per participant
 ```{r}
@@ -416,52 +406,47 @@ data_si$SI_correct <- as.numeric(data_si$SI_correct)
 #scalar implicature task
 mss.acc <- data_si %>%
   group_by(sub_ID, type)%>%
-  dplyr::summarise(correct=mean(SI_correct), 
-                   test_age = test_age[1])%>%
-  spread(type, correct)
+  dplyr::summarise(mean = mean(SI_correct), 
+                   test_age = test_age[1],
+                   agesplit = agesplit[1])%>%
+  spread(type, mean)
 ```
 
 Check if Ali's results are statistically different than ours - just a quick independent sample t-test
 ```{r}
-#resample our data to get the sample sizes equal - ideally we should repeat this a bunch
-si.x <- sample_n(mss.acc, 51)
+d_combined <- read.csv("combined.csv")
 
-#then, add her data to ours to do test
-d.combined <- bind_cols(si.x, mss)
+young1 <- d_combined %>%
+  filter(agesplit =="3.0--3.5" | agesplit ==  "3-3.5 years")
 
-#weird number transformation
-d.combined$age <- as.character(d.combined$age)
-d.combined$age <- as.numeric(d.combined$age)
+young2 <- d_combined %>%
+  filter(agesplit =="3.5--4.0" | agesplit ==  "3.5-4 years")
 
-d.combined$test_age <- as.character(d.combined$test_age)
-d.combined$test_age <- as.numeric(d.combined$test_age)
+old1 <- d_combined %>%
+  filter(agesplit =="4.0--4.5" | agesplit ==  "4-4.5 years")
 
-#the t test for implicature performance in general
-with(d.combined, t.test(Implicature,some,equal.var=TRUE))
+old2 <- d_combined %>%
+  filter(agesplit =="4.5--5.0" | agesplit ==  "4.5-5 years")
 
-#what about by age?
-d.1 <- d.combined %>%
-  filter(age < 3.5 | test_age < 3.5)
-with(d.1, t.test(Implicature,some,equal.var=TRUE))
+#3-3.5s
+with(young1, t.test(All,all,equal.var=TRUE))
+with(young1, t.test(Implicature,some,equal.var=TRUE))
+with(young1, t.test(None,none,equal.var=TRUE))
 
-d.2 <- d.combined %>%
-  filter(age < 4 & age > 3.5 | test_age < 4 & test_age > 3.5)
-with(d.2, t.test(Implicature,some,equal.var=TRUE))
+#3.5-4s
+with(young2, t.test(All,all,equal.var=TRUE))
+with(young2, t.test(Implicature,some,equal.var=TRUE))
+with(young2, t.test(None,none,equal.var=TRUE))
 
-d.3 <- d.combined %>%
-  filter(age < 4.5 & age > 4 | test_age < 4.5 & test_age > 4)
-with(d.3, t.test(Implicature,some,equal.var=TRUE))
+#4-4.5s
+with(old1, t.test(All,all,equal.var=TRUE))
+with(old1, t.test(Implicature,some,equal.var=TRUE))
+with(old1, t.test(None,none,equal.var=TRUE))
 
-d.4 <- d.combined %>%
-  filter(age < 5 & age > 4.5 | test_age < 5 & test_age > 4.5)
-with(d.4, t.test(Implicature,some,equal.var=TRUE))
-
-
-#performance on none trials, same
-with(d.1, t.test(None,none,equal.var=TRUE))
-with(d.2, t.test(None,none,equal.var=TRUE))
-with(d.3, t.test(None,none,equal.var=TRUE))
-with(d.4, t.test(None,none,equal.var=TRUE))
+#4.5-5s
+with(old2, t.test(All,all,equal.var=TRUE))
+with(old2, t.test(Implicature,some,equal.var=TRUE))
+with(old2, t.test(None,none,equal.var=TRUE))
 ```
 
 
@@ -494,8 +479,8 @@ data_dccs <- tmp2
 #dccs task summary measures by participant
 mss.acc2 <- data_dccs %>%
   group_by(sub_ID, switch_type)%>%
-  dplyr::summarise(correct=mean(DCCS_correct))%>%
-  spread(switch_type, correct)
+  dplyr::summarise(mean=mean(DCCS_correct))%>%
+  spread(switch_type, mean)
 ```
 
 Now GQ
@@ -554,8 +539,9 @@ ggcorplot(data=cor.data)
 
 Correlation between age and DCCS post
 ```{r}
+library(ppcor)
 #significant correlation between age and DCCS post performance
-cor.test(d_all$test_age, d_all$DCCS_post)
+cor.test(~d_all$test_age + d_all$DCCS_post)
 ```
 
 Partial correlations - control for age
